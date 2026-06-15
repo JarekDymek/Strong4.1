@@ -28,6 +28,19 @@ header {
 #judgeIcon { font-size: 1.8rem; flex-shrink: 0; }
 #headerText h1 { font-size: 1rem; font-weight: 700; }
 #headerText p  { font-size: 0.78rem; color: rgba(255,255,255,0.65); margin-top: 2px; }
+#exitJudgeBtn {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#exitJudgeBtn:active { transform: scale(0.97); }
 #connectionBadge {
   margin-left: auto; font-size: 0.72rem; font-weight: 700;
   padding: 4px 10px; border-radius: 20px;
@@ -293,6 +306,7 @@ header {
     <h1>Panel Sędziego</h1>
     <p id="judgeLabel">Strongman — System Zarządzania</p>
   </div>
+  <button id="exitJudgeBtn" type="button">Wyjdz</button>
   <div id="connectionBadge">
     <div id="connDot"></div>
     <span id="connText">Łączenie…</span>
@@ -562,8 +576,9 @@ function renderJudgeScreen(softUpdate = false) {
     loadQueue();
     list.innerHTML = (s.competitors || []).map((name, idx) => {
         const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
-        const pending = pendingQueue.find(p => p.name === name && !p.acked);
-        const acked = pendingQueue.find(p => p.name === name && p.acked);
+        const eventKey = currentEventKey();
+        const pending = pendingQueue.find(p => p.name === name && p.eventKey === eventKey && !p.acked);
+        const acked = pendingQueue.find(p => p.name === name && p.eventKey === eventKey && p.acked);
         const isFirst = idx === 0;
         const orderBadgeStyle = isFirst
             ? 'background:#f1c40f;color:#1a2942;font-weight:800;'
@@ -599,6 +614,8 @@ function renderJudgeScreen(softUpdate = false) {
 function loadQueue() {
     try { pendingQueue = JSON.parse(localStorage.getItem(LS_QUEUE_KEY) || '[]'); }
     catch { pendingQueue = []; }
+    const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+    pendingQueue = pendingQueue.filter(item => !item.createdAt || item.createdAt > cutoff);
 }
 
 function saveQueue() {
@@ -607,6 +624,10 @@ function saveQueue() {
 
 function makeResultId(name) {
     return `${currentToken}_${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function currentEventKey() {
+    return `${currentSid || currentSession?.sid || ''}|${currentSession?.eventTitle || ''}|${currentSession?.eventType || ''}`;
 }
 
 function setCardState(name, status, message) {
@@ -650,8 +671,9 @@ async function transmitPayload(payload) {
 
 async function processQueue() {
     loadQueue();
+    const eventKey = currentEventKey();
     for (const item of pendingQueue) {
-        if (item.acked) continue;
+        if (item.acked || item.token !== currentToken || item.eventKey !== eventKey) continue;
         if (Date.now() - (item.lastTry || 0) < 2500) continue;
         item.lastTry = Date.now();
         item.tryCount = (item.tryCount || 0) + 1;
@@ -663,7 +685,7 @@ async function processQueue() {
 
 function markAcked(resultId) {
     loadQueue();
-    const item = pendingQueue.find(p => p.resultId === resultId);
+    const item = pendingQueue.find(p => p.resultId === resultId && p.token === currentToken);
     if (!item) return;
     item.acked = true;
     saveQueue();
@@ -678,7 +700,8 @@ function startAckWatcher() {
     if (ackTimer) clearInterval(ackTimer);
     ackTimer = setInterval(() => {
         loadQueue();
-        pendingQueue.filter(p => !p.acked).forEach(item => {
+        const eventKey = currentEventKey();
+        pendingQueue.filter(p => !p.acked && p.token === currentToken && p.eventKey === eventKey).forEach(item => {
             const raw = localStorage.getItem(LS_ACK_PFX + currentToken + '_' + item.resultId);
             if (raw) markAcked(item.resultId);
         });
@@ -707,12 +730,16 @@ window.sendResult = async function(name) {
     if (result === '') { input.focus(); return; }
 
     loadQueue();
-    const existing = pendingQueue.find(p => p.name === name && !p.acked);
+    const eventKey = currentEventKey();
+    const existing = pendingQueue.find(p => p.name === name && p.eventKey === eventKey && !p.acked);
     const payload = existing || {
         resultId: makeResultId(name),
         result, name,
         token: currentToken,
         label: currentSession?.label || '',
+        eventKey,
+        eventTitle: currentSession?.eventTitle || '',
+        eventType: currentSession?.eventType || '',
         createdAt: Date.now(),
         tryCount: 0,
     };

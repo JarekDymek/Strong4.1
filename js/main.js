@@ -284,6 +284,24 @@ function updateCompetitionProgress() {
 /**
  * Odświeża cały interfejs użytkownika na podstawie aktualnego stanu aplikacji.
  */
+
+function startJudgeResultPolling() {
+    Judge.startPolling((name, result, judgeLabel, meta = {}) => {
+        const input = document.querySelector(`#resultsTable .resultInput[data-name="${CSS.escape(name)}"]`);
+        if (!input || input.readOnly) return;
+        History.saveToUndoHistory(State.getState());
+        input.value = result;
+        State.setDraftResult(name, result);
+        History.saveToUndoHistory(State.getState());
+        Persistence.triggerAutoSaveWithContext(`Po wyniku od ${judgeLabel} - ${name}`);
+        input.classList.add('highlight-flash-input');
+        UI.showNotification(`${judgeLabel}: ${name} -> ${result}`, 'success', 3000);
+        setTimeout(() => input.classList.remove('highlight-flash-input'), 1000);
+        if (typeof meta.acknowledge === 'function') meta.acknowledge();
+        document.dispatchEvent(new CustomEvent('strongman:result-updated'));
+    });
+}
+
 function refreshFullUI() {
     const currentState = State.getState();
     State.setAllDbCompetitors(currentState.allDbCompetitors || []);
@@ -304,6 +322,7 @@ function refreshFullUI() {
         UI.updateEventTitle(currentState.eventNumber, currentState.eventTitle);
         UI.updateEventTypeButtons(currentState.currentEventType);
         UI.renderTable();
+        startJudgeResultPolling();
         
         const resultInputs = document.querySelectorAll('#resultsTable .resultInput');
         const event = currentState.eventHistory.find(e => e.nr === currentState.eventNumber);
@@ -362,21 +381,7 @@ function openDrawView(competitorNames) {
         State.markCompetitionRunning();
 
         // Uruchom polling wyników od sędziów pomocniczych
-        Judge.startPolling((name, result, judgeLabel, meta = {}) => {
-            const input = document.querySelector(`#resultsTable .resultInput[data-name="${CSS.escape(name)}"]`);
-            if (input && !input.readOnly) {
-                History.saveToUndoHistory(State.getState());
-                input.value = result;
-                State.setDraftResult(name, result);
-                History.saveToUndoHistory(State.getState());
-                Persistence.triggerAutoSaveWithContext(`Po wyniku od ${judgeLabel} - ${name}`);
-                input.classList.add('highlight-flash-input');
-                UI.showNotification(`${judgeLabel}: ${name} -> ${result}`, 'success', 3000);
-                setTimeout(() => input.classList.remove('highlight-flash-input'), 1000);
-                if (typeof meta.acknowledge === 'function') meta.acknowledge();
-                document.dispatchEvent(new CustomEvent('strongman:result-updated'));
-            }
-        });
+        startJudgeResultPolling();
         // Zapisz checkpoint z wylosowaną kolejnością
         const _first = orderedNames[0] || '';
         const _evName2 = State.getEventName() || 'Zawody';

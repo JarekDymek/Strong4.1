@@ -1,10 +1,12 @@
-const CACHE_VERSION = 'v2';  // BUG-08: bumped, stale service-worker.js removed
+const CACHE_VERSION = 'v5-safety-fixes';  // BUG-08: bumped, stale service-worker.js removed
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
 
 const PRECACHE_URLS = [
-  '', 'index.html', 'css/main.css', 'js/main.js', 'js/ui.js',
+  '', 'index.html', 'judge.html', 'live.html', 'css/main.css',
+  'js/main.js', 'js/ui.js', 'js/state.js', 'js/history.js',
+  'js/focusMode.js', 'js/persistence.js', 'js/judge.js', 'js/handlers.js',
   'images/icon-192.png', 'images/icon-512.png'
 ].map(scopeUrl);
 
