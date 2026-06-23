@@ -642,8 +642,16 @@ function setupEventListeners() {
     
     // --- General UI & Meta ---
     safeAddListener('themeSelector','change', Handlers.handleThemeChange);
-    safeAddListener('selectLogoBtn','click', () => document.getElementById('logoUpload').click());
+    const openLogoPicker = () => document.getElementById('logoUpload')?.click();
+    safeAddListener('selectLogoBtn','click', openLogoPicker);
     safeAddListener('logoUpload','change', Handlers.handleLogoUpload);
+    safeAddListener('logoImg','click', openLogoPicker);
+    safeAddListener('logoImg','keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openLogoPicker();
+        }
+    });
     safeAddListener('logoImg','dblclick', Handlers.handleRemoveLogo);
     safeAddListener('eventNameInput','input', (e) => {
         State.setEventName(e.target.value);

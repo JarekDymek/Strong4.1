@@ -367,9 +367,18 @@ export function setLogoUI(data) {
     const selectLogoBtn = document.getElementById('selectLogoBtn');
     if (!logoImg) return;
 
-    logoImg.src = data || DEFAULT_LOGO_SRC;
-    logoImg.alt = data && data !== DEFAULT_LOGO_SRC ? 'Logo zawodów' : 'Logo Strong Man';
-    if (selectLogoBtn) selectLogoBtn.textContent = data && data !== DEFAULT_LOGO_SRC ? 'Zmień Logo' : 'Wybierz Logo';
+    const logoSource = data || DEFAULT_LOGO_SRC;
+    const isCustomLogo = Boolean(data && data !== DEFAULT_LOGO_SRC);
+    logoImg.src = logoSource;
+    logoImg.alt = isCustomLogo ? 'Logo zawod\u00f3w' : 'Logo Strong Man';
+    logoImg.title = 'Dotknij, aby zmieni\u0107 logo';
+    logoImg.classList.toggle('logo-is-custom', isCustomLogo);
+
+    if (selectLogoBtn) {
+        selectLogoBtn.textContent = isCustomLogo ? 'Zmie\u0144 Logo' : 'Wybierz Logo';
+        selectLogoBtn.hidden = true;
+        selectLogoBtn.closest('.logo-actions')?.classList.add('is-hidden');
+    }
 }
 
 export function toggleHistoryPanel() {
@@ -609,9 +618,9 @@ export function renderEventsList(events) {
         <div class="competitor-list-item event-list-item">
             <span class="event-list-name">${safeName}</span>
             <span class="event-list-type ${typeClass}">${escapeHTML(typeLabel)}</span>
-            <div class="competitor-list-actions">
-                 <button data-action="edit-event" data-id="${safeId}">Edytuj</button>
-                 <button data-action="delete-event" data-id="${safeId}" style="background:var(--error-color);">Usuń</button>
+            <div class="competitor-list-actions event-actions">
+                 <button type="button" class="event-action-btn event-action-edit" data-action="edit-event" data-id="${safeId}" title="Edytuj" aria-label="Edytuj konkurencj\u0119 ${safeName}">&#9998;</button>
+                 <button type="button" class="event-action-btn event-action-delete" data-action="delete-event" data-id="${safeId}" title="Usu\u0144" aria-label="Usu\u0144 konkurencj\u0119 ${safeName}">&#128465;</button>
             </div>
         </div>
     `;

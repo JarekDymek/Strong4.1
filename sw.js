@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v8-backup-collapse-logo';  // BUG-08: bumped, stale service-worker.js removed
+const CACHE_VERSION = 'v9-mobile-layout-tune';  // BUG-08: bumped, stale service-worker.js removed
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
@@ -7,7 +7,7 @@ const PRECACHE_URLS = [
   '', 'index.html', 'judge.html', 'live.html', 'css/main.css',
   'js/main.js', 'js/ui.js', 'js/state.js', 'js/history.js',
   'js/focusMode.js', 'js/persistence.js', 'js/judge.js', 'js/handlers.js',
-  'images/icon-192.png', 'images/icon-512.png', 'images/logo-strong-man.png?v=3'
+  'images/icon-192.png', 'images/icon-512.png', 'images/logo-strong-man.png?v=4'
 ].map(scopeUrl);
 
 self.addEventListener('install', event => {

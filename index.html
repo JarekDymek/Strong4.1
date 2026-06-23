@@ -440,10 +440,13 @@
 <header class="header">
   <div class="logo-container">
     <img id="logoImg"
-         src="images/logo-strong-man.png?v=3"
-         alt="Logo Strong Man">
-    <div class="logo-actions">
-      <button id="selectLogoBtn" class="logo-btn">🖼 Wybierz Logo</button>
+         src="images/logo-strong-man.png?v=4"
+         alt="Logo Strong Man"
+         role="button"
+         tabindex="0"
+         aria-label="Dotknij, aby zmienic logo">
+    <div class="logo-actions is-hidden">
+      <button id="selectLogoBtn" class="logo-btn" hidden>Wybierz Logo</button>
     </div>
     <input type="file" id="logoUpload" accept="image/*" style="display:none">
   </div>
@@ -651,6 +654,10 @@
       <div id="competitorSearchResults"></div>
     </div>
 
+
+    <button id="selectEventsForCompetitionBtn">
+      📋 Wybierz Konkurencje i Startuj
+    </button>
     <!-- ══ ZABEZPIECZENIA ══ -->
     <div class="security-panel collapsible-panel" data-collapsible-key="intro-security" data-collapsed-default="true">
       <button type="button" class="collapsible-trigger" aria-expanded="false">
@@ -681,10 +688,6 @@
       </div>
       </div>
     </div>
-
-    <button id="selectEventsForCompetitionBtn">
-      📋 Wybierz Konkurencje i Startuj
-    </button>
     </div>
   </div>
 

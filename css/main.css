@@ -239,10 +239,12 @@ body {
 ══════════════════════════════════════════════ */
 .event-meta-inputs { display:flex; gap:10px; flex-wrap:wrap; }
 .event-meta-inputs input { flex:1; min-width:150px; }
-.logo-container { display:flex; justify-content:center; align-items:center; flex-direction:column; margin-bottom:12px; }
-#logoImg { max-height:150px; max-width:100%; margin-bottom:10px; cursor:pointer; border-radius:var(--r-md); transition:transform var(--t-fast); }
-#logoImg:hover { transform:scale(1.04); }
+.logo-container { display:flex; justify-content:center; align-items:center; flex-direction:column; margin-bottom:8px; }
+#logoImg { max-height:clamp(76px,16vw,132px); max-width:100%; margin-bottom:0; cursor:pointer; border-radius:var(--r-md); object-fit:contain; transition:transform var(--t-fast), filter var(--t-fast); }
+#logoImg:hover { transform:scale(1.025); filter:brightness(1.03); }
+#logoImg:focus-visible { outline:3px solid rgba(245,158,0,0.75); outline-offset:6px; }
 .logo-actions { display:flex; gap:8px; margin-top:6px; }
+.logo-actions.is-hidden { display:none !important; }
 .logo-btn {
   padding:8px 16px; font-size:0.9rem;
   border:1.5px solid var(--border-hi); border-radius:22px;
@@ -330,7 +332,7 @@ button:focus-visible {
 #exportStateBtn_intro       { background:linear-gradient(135deg,#374151,#4B5563); }
 #importStateBtn_main,
 #importStateBtn_intro       { background:linear-gradient(135deg,#374151,#4B5563); }
-#selectEventsForCompetitionBtn { background:linear-gradient(135deg,#C2410C,#FF4500); font-size:1.05rem; padding:18px; animation:glow-fire 3s ease-in-out infinite; }
+#selectEventsForCompetitionBtn { background:linear-gradient(135deg,#C2410C,#FF4500); font-size:1.05rem; padding:18px; animation:glow-fire 3s ease-in-out infinite; margin:12px 0 4px; z-index:22; }
 #openLiveDisplayBtn,
 #openLiveDisplayBtn2        { background:linear-gradient(135deg,#5B21B6,#7C3AED); }
 #toggleTableWidthBtn        { background:linear-gradient(135deg,#1E3A5F,#2D4A6A); font-size:0.9rem; padding:11px; }
@@ -493,6 +495,11 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
 .competitor-list-item span { font-weight:700; font-size:0.95rem; color:var(--text-main); }
 .competitor-list-actions { display:flex; gap:6px; }
 .competitor-list-actions button { width:auto; padding:7px 12px; margin:0; font-size:0.82rem; min-height:0; }
+.event-list-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; }
+.event-list-item .competitor-list-actions { display:grid; grid-template-columns:44px 44px; gap:6px; }
+.event-action-btn { width:44px !important; min-width:44px; min-height:44px !important; padding:0 !important; margin:0 !important; border-radius:12px; font-size:1.15rem !important; line-height:1; display:flex; align-items:center; justify-content:center; }
+.event-action-edit { background:linear-gradient(135deg,#1E3A5F,#2D4A6A) !important; color:#fff; }
+.event-action-delete { background:linear-gradient(135deg,#B91C1C,#EF4444) !important; color:#fff; box-shadow:0 0 0 2px rgba(239,68,68,0.18), 0 8px 18px rgba(185,28,28,0.28); }
 #competitorListContainer, #eventListContainer { max-height:38vh; overflow-y:auto; margin:12px 0; }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 #competitorForm .categories-checkbox-group { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 10px; }
@@ -1578,11 +1585,20 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
     border: 1.5px solid var(--border);
     box-shadow: var(--shadow-lg);
   }
-  #drawView-body { flex-direction: column; gap: 8px; }
-  #wheelCanvas { width: clamp(200px,68vw,320px); height: clamp(200px,68vw,320px); }
-  #drawSidePanel { max-width: 100%; width: 100%; max-height: 30vh; }
-  #drawOrderList { flex-direction: row; flex-wrap: wrap; overflow-x: auto; overflow-y: hidden; gap: 5px; }
-  .draw-order-item { min-width: 110px; flex-shrink: 0; padding: 6px 9px; }
+  #drawView-inner { padding: max(8px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom)); gap: 8px; }
+  #drawView-title { font-size: clamp(1.25rem,6.4vw,1.95rem); letter-spacing: 2px; line-height: 1.08; }
+  .draw-subtitle-el { font-size: 0.85rem; margin-top: 2px; }
+  #drawView-body { flex-direction: column; gap: 8px; justify-content: flex-start; }
+  #wheelCanvas { width: min(68vw, 300px, 42dvh); height: min(68vw, 300px, 42dvh); }
+  #drawSidePanel { max-width: 100%; width: 100%; max-height: 27dvh; }
+  #drawOrderTitle { font-size: 0.95rem; padding-bottom: 4px; }
+  #drawOrderList { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); overflow-x: hidden; overflow-y: auto; gap: 6px; padding-right: 0; }
+  .draw-order-item { min-width: 0; flex-shrink: 1; padding: 8px 9px; gap: 8px; }
+  .draw-order-name { white-space: normal; line-height: 1.12; font-size: 0.86rem; }
+  .draw-first-badge { font-size: 0.62rem; padding: 2px 6px; }
+  #drawView-actions { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
+  .draw-btn { width: 100%; min-height: 56px; padding: 12px 14px; font-size: 1rem; }
+  .draw-btn-spin, .draw-btn-start { min-width: 0; }
 }
 
 /* ══════════════════════════════════════════════
@@ -1594,8 +1610,11 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
 
   /* Nagłówek */
   .header h1 { font-size: 1.4rem; letter-spacing: 2px; }
-  #logoImg { max-height: 100px; }
-  .event-meta-header, .header, .intro-container, .panel { padding: 13px; border-radius: var(--r-md); }
+  #logoImg { max-height: 82px; }
+  .logo-container { margin-bottom: 4px; }
+  .header h1 { margin-bottom: 2px; }
+  .header p { margin: 2px 0 0; }
+  .event-meta-header, .header, .intro-container, .panel { padding: 12px; border-radius: var(--r-md); }
 
   /* Przyciski — większy target dotyku */
   button { min-height: 50px; font-size: 0.95rem; border-radius: var(--r-md); }
@@ -1694,7 +1713,8 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
   /* Modale */
   .modal-box { padding: 13px; border-radius: var(--r-md); max-height: 95dvh; }
   #dbManagementButtons, #eventDbManagementButtons { grid-template-columns: 1fr; }
-  #competitorSelectionList { grid-template-columns: 1fr; max-height: 38vh; }
+  #competitorSelectionList { grid-template-columns: 1fr; max-height: 34dvh; }
+  #selectEventsForCompetitionBtn { position: sticky; bottom: calc(8px + env(safe-area-inset-bottom)); min-height: 62px; font-size: 1rem; box-shadow:0 10px 28px rgba(194,65,12,0.45); }
   .security-panel .button-group { grid-template-columns: 1fr; }
   .summary-actions-grid { grid-template-columns: 1fr; gap: 10px; }
   .summary-actions-grid button { font-size: 1rem; padding: 14px 12px; }
@@ -1709,8 +1729,7 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
 
 @media (max-width: 380px) {
   html { font-size: 14px; }
-  #drawView-actions { flex-direction: column; align-items: stretch; }
-  .draw-btn { width: 100%; }
+  #drawOrderList { grid-template-columns: 1fr; }
   .actions-grid button { font-size: 0.95rem; padding: 13px 10px; }
 }
 
@@ -1800,6 +1819,7 @@ body.dark .event-type-low { color: #93C5FD; }
   .modal-buttons button { width: 100% !important; min-height: 54px; }
   .logo-actions { width: 100%; }
   .logo-actions .logo-btn { width: 100%; min-height: 48px; }
+  .logo-actions.is-hidden { display:none !important; }
   #competitorListContainer, #eventListContainer { max-height: 52dvh; }
   .competitor-list-item { padding: 13px; gap: 9px; }
   .competitor-list-actions button { min-height: 44px; padding: 10px 12px; }
@@ -1813,8 +1833,9 @@ body.dark .event-type-low { color: #93C5FD; }
   }
   .pwa-update-btn,
   .pwa-update-dismiss { width: 100%; }
-  .event-list-item { align-items: stretch; }
-  .event-list-type { width: fit-content; }
-  .competitor-list-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
-  .competitor-list-actions button { width: 100%; }
+  .event-list-item { grid-template-columns:minmax(0,1fr) auto; align-items:center; }
+  .event-list-type { width: fit-content; grid-column: 1; }
+  .event-list-item .competitor-list-actions { grid-column: 2; grid-row: 1 / span 2; grid-template-columns:44px 44px; }
+  .competitor-list-actions:not(.event-actions) { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .competitor-list-actions:not(.event-actions) button { width: 100%; }
 }
