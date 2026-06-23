@@ -6,6 +6,42 @@ let deferredPrompt = null;
 let updateRegistration = null;
 let refreshing = false;
 
+
+function findScrollableParent(node) {
+  let el = node instanceof Element ? node : node?.parentElement;
+  while (el && el !== document.body && el !== document.documentElement) {
+    const style = getComputedStyle(el);
+    const canScrollY = /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight;
+    if (canScrollY) return el;
+    el = el.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
+function blockPullToRefresh() {
+  let startY = 0;
+  let startX = 0;
+
+  window.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+    startY = event.touches[0].clientY;
+    startX = event.touches[0].clientX;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (event) => {
+    if (event.touches.length !== 1) return;
+    const currentY = event.touches[0].clientY;
+    const currentX = event.touches[0].clientX;
+    const deltaY = currentY - startY;
+    const deltaX = Math.abs(currentX - startX);
+    if (deltaY <= 0 || deltaX > Math.abs(deltaY)) return;
+
+    const scrollable = findScrollableParent(event.target);
+    const atTop = !scrollable || scrollable.scrollTop <= 0;
+    if (atTop) event.preventDefault();
+  }, { passive: false });
+}
+
 function ensureUpdateBanner() {
   let banner = document.getElementById('pwaUpdateBanner');
   if (banner) return banner;
@@ -116,6 +152,7 @@ export function initPWA() {
     return choice;
   };
 
+  blockPullToRefresh();
   registerServiceWorker();
 }
 

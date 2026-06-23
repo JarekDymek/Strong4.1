@@ -440,7 +440,7 @@
 <header class="header">
   <div class="logo-container">
     <img id="logoImg"
-         src="images/logo-strong-man.png"
+         src="images/logo-strong-man.png?v=3"
          alt="Logo Strong Man">
     <div class="logo-actions">
       <button id="selectLogoBtn" class="logo-btn">🖼 Wybierz Logo</button>
@@ -627,7 +627,15 @@
   </div><!-- /judgeGuidePanel -->
 
   <!-- ══ WYBÓR ZAWODNIKÓW ══ -->
-  <div class="intro-container">
+  <div class="intro-container collapsible-panel" data-collapsible-key="intro-competitors" data-collapsed-default="false">
+    <button type="button" class="collapsible-trigger" aria-expanded="true">
+      <span class="collapsible-title">
+        <strong>Zawodnicy i start zawod&#243;w</strong>
+        <small>Lista zawodnik&#243;w, filtry i przej&#347;cie do wyboru konkurencji.</small>
+      </span>
+      <span class="collapsible-chevron">&#9662;</span>
+    </button>
+    <div class="collapsible-body">
     <h2>👥 Wybierz Zawodników</h2>
     <p style="color:#64748B;font-size:0.9rem;margin-bottom:14px;">
       Filtruj według kategorii. Zaznaczenia zachowują się między filtrami.
@@ -677,6 +685,7 @@
     <button id="selectEventsForCompetitionBtn">
       📋 Wybierz Konkurencje i Startuj
     </button>
+    </div>
   </div>
 
 </main>
@@ -733,30 +742,41 @@
     <button id="showFinalSummaryBtn">📊 Podsumowanie →</button>
   </div>
 
-  <!-- ROZWIŃ TABELĘ -->
-  <button id="toggleTableWidthBtn">⬅️➡️ Rozwiń Tabelę</button>
+  <section id="resultsPanel" class="panel collapsible-panel" data-collapsible-key="main-results" data-collapsed-default="false">
+    <button type="button" class="collapsible-trigger" aria-expanded="true">
+      <span class="collapsible-title">
+        <strong>Wyniki zawodnik&#243;w</strong>
+        <small>Tabela, cofanie wpis&#243;w i tryb kart na telefonie.</small>
+      </span>
+      <span class="collapsible-chevron">&#9662;</span>
+    </button>
+    <div class="collapsible-body">
+      <!-- ROZWIN TABELE -->
+      <button id="toggleTableWidthBtn">&#8596; Rozwi&#324; Tabel&#281;</button>
 
-  <!-- TABELA WYNIKÓW -->
-  <div class="table-wrapper">
-    <table id="resultsTable">
-      <thead>
-        <tr>
-          <th>Zawodnik</th>
-          <th>Wynik</th>
-          <th>Miejsce</th>
-          <th>Pkt.</th>
-          <th>Suma</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+      <!-- TABELA WYNIKOW -->
+      <div class="table-wrapper">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>Zawodnik</th>
+              <th>Wynik</th>
+              <th>Miejsce</th>
+              <th>Pkt.</th>
+              <th>Suma</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
-  <!-- COFNIJ / PONÓW -->
-  <div id="undo-redo-container">
-    <button id="undoBtn" disabled>↩ Cofnij</button>
-    <button id="redoBtn" disabled>↪ Ponów</button>
-  </div>
+      <!-- COFNIJ / PONOW -->
+      <div id="undo-redo-container">
+        <button id="undoBtn" disabled>Cofnij</button>
+        <button id="redoBtn" disabled>Pon&#243;w</button>
+      </div>
+    </div>
+  </section>
 
   <!-- TELEBIM -->
   <button id="openLiveDisplayBtn">📺 Otwórz Telebim na Żywo</button>
@@ -842,14 +862,32 @@
     </div>
   </div>
 
-  <div class="panel" id="finalStandingsPanel" style="display:none;">
-    <h3>🏆 Klasyfikacja Końcowa</h3>
-    <div id="finalStandingsContent"></div>
+  <div class="panel collapsible-panel" id="finalStandingsPanel" data-collapsible-key="summary-standings" data-collapsed-default="false" style="display:none;">
+    <button type="button" class="collapsible-trigger" aria-expanded="true">
+      <span class="collapsible-title">
+        <strong>Klasyfikacja ko&#324;cowa</strong>
+        <small>Najwa&#380;niejsze wyniki zawod&#243;w.</small>
+      </span>
+      <span class="collapsible-chevron">&#9662;</span>
+    </button>
+    <div class="collapsible-body">
+      <h3>Klasyfikacja ko&#324;cowa</h3>
+      <div id="finalStandingsContent"></div>
+    </div>
   </div>
 
-  <div class="panel" id="fullSummaryPanel" style="display:none;">
-    <h3>📋 Pełne Podsumowanie Zawodów</h3>
-    <div id="fullSummaryContent"></div>
+  <div class="panel collapsible-panel" id="fullSummaryPanel" data-collapsible-key="summary-full" data-collapsed-default="true" style="display:none;">
+    <button type="button" class="collapsible-trigger" aria-expanded="false">
+      <span class="collapsible-title">
+        <strong>Pe&#322;ne podsumowanie</strong>
+        <small>Szczeg&#243;&#322;y wszystkich konkurencji, u&#380;ywane rzadziej.</small>
+      </span>
+      <span class="collapsible-chevron">&#9662;</span>
+    </button>
+    <div class="collapsible-body">
+      <h3>Pe&#322;ne podsumowanie zawodow</h3>
+      <div id="fullSummaryContent"></div>
+    </div>
   </div>
 
   <div class="summary-actions-grid">

@@ -1,7 +1,7 @@
 // Plik: js/state.js
 // Cel: Centralny moduł zarządzania stanem aplikacji.
 
-export const DEFAULT_LOGO_SRC = 'images/logo-strong-man.png';
+export const DEFAULT_LOGO_SRC = 'images/logo-strong-man.png?v=3';
 
 export const state = {
     competitors: [],
@@ -12,7 +12,7 @@ export const state = {
     currentEventType: 'high',
     competitorProfiles: {},
     allDbCompetitors: [],
-    allDbEvents: [], 
+    allDbEvents: [],
     focusModeIndex: -1,
     eventName: '',
     eventLocation: '',

@@ -6,12 +6,18 @@ import { dbAction } from './db-dexie.js';
 const eventCollator = new Intl.Collator('pl', { sensitivity: 'base', numeric: true });
 
 function normalizeEventName(name) {
-  return String(name || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pl');
+  return String(name || '')
+    .normalize('NFKC')
+    .trim()
+    .replace(/[\u2013\u2014\u2212]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')
+    .toLocaleLowerCase('pl');
 }
 
 function sanitizeEvent(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const name = String(raw.name || '').trim().replace(/\s+/g, ' ');
+  const name = String(raw.name || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
   if (!name) return null;
   return {
     ...raw,
@@ -43,14 +49,14 @@ function uniqueEvents(events) {
 export async function getEvents() {
   return await dbAction(null, 'events', 'readonly', async (store) => {
     const events = await store.toArray();
-    return sortEvents(events);
+    return uniqueEvents(events).events;
   });
 }
 
 export async function dedupeEventsDatabase() {
   return await dbAction(null, 'events', 'readwrite', async (store) => {
     const events = await store.toArray();
-    const sorted = sortEvents(events).sort((a, b) => {
+    const sorted = [...events].sort((a, b) => {
       const byName = eventCollator.compare(a.name || '', b.name || '');
       if (byName !== 0) return byName;
       return Number(a.id || 0) - Number(b.id || 0);
@@ -58,13 +64,14 @@ export async function dedupeEventsDatabase() {
     const seen = new Set();
     const duplicateIds = [];
     for (const event of sorted) {
-      const key = normalizeEventName(event.name);
+      const clean = sanitizeEvent(event);
+      const key = normalizeEventName(clean?.name || '');
       if (!key) {
-        if (event.id != null) duplicateIds.push(event.id);
+        if (event.id != null) duplicateIds.push(Number(event.id));
         continue;
       }
       if (seen.has(key)) {
-        if (event.id != null) duplicateIds.push(event.id);
+        if (event.id != null) duplicateIds.push(Number(event.id));
       } else {
         seen.add(key);
       }
@@ -76,7 +83,7 @@ export async function dedupeEventsDatabase() {
 
 export async function saveEvent(eventData) {
   const clean = sanitizeEvent(eventData);
-  if (!clean) throw new Error('Podaj nazwę konkurencji.');
+  if (!clean) throw new Error('Podaj nazw\u0119 konkurencji.');
 
   const existingEvents = await getEvents();
   const duplicate = existingEvents.find(event =>
@@ -84,7 +91,7 @@ export async function saveEvent(eventData) {
     Number(event.id) !== Number(clean.id || 0)
   );
   if (duplicate) {
-    throw new Error('Konkurencja o takiej nazwie już istnieje w bazie. Edytuj istniejący wpis zamiast dodawać duplikat.');
+    throw new Error('Konkurencja o takiej nazwie ju\u017c istnieje w bazie. Edytuj istniej\u0105cy wpis zamiast dodawa\u0107 duplikat.');
   }
 
   return await dbAction(null, 'events', 'readwrite', (store, data) => {
@@ -106,13 +113,14 @@ export async function deleteEvent(id) {
 
 export async function clearEventsDatabase() {
   await dbAction(null, 'events', 'readwrite', (store) => store.clear());
-  showNotification('Baza konkurencji została wyczyszczona.', 'info', 3000);
+  showNotification('Baza konkurencji zosta\u0142a wyczyszczona.', 'info', 3000);
 }
 
 export async function seedEventsDatabaseIfNeeded() {
+  await dedupeEventsDatabase();
   const existing = await getEvents();
   if ((!existing || existing.length === 0) && INITIAL_EVENTS && INITIAL_EVENTS.length > 0) {
-    showNotification('Wypełniam bazę początkowymi konkurencjami...', 'info', 3000);
+    showNotification('Wype\u0142niam baz\u0119 pocz\u0105tkowymi konkurencjami...', 'info', 3000);
     const { events } = uniqueEvents(INITIAL_EVENTS);
     await dbAction(null, 'events', 'readwrite', (store, data) => store.bulkAdd(data), events.map(({ id, ...event }) => event));
     showNotification(`Baza konkurencji gotowa: ${events.length} pozycji.`, 'success', 2500);
@@ -120,12 +128,12 @@ export async function seedEventsDatabaseIfNeeded() {
   }
 
   const { removed } = await dedupeEventsDatabase();
-  if (removed > 0) showNotification(`Usunięto duplikaty konkurencji: ${removed}.`, 'info', 3000);
+  if (removed > 0) showNotification(`Usuni\u0119to duplikaty konkurencji: ${removed}.`, 'info', 3000);
 }
 
 export async function importEventsFromJson(jsonArray) {
   if (!Array.isArray(jsonArray) || jsonArray.length === 0)
-    throw new Error('Nieprawidłowy lub pusty plik ? oczekiwana tablica konkurencji.');
+    throw new Error('Nieprawid\u0142owy lub pusty plik - oczekiwana tablica konkurencji.');
 
   const { events, duplicates } = uniqueEvents(jsonArray);
   if (events.length === 0) throw new Error('Plik nie zawiera poprawnych konkurencji.');
@@ -135,7 +143,7 @@ export async function importEventsFromJson(jsonArray) {
     await store.bulkAdd(data.map(({ id, ...event }) => event));
   }, events);
 
-  const duplicateText = duplicates ? ` Pominięto duplikaty: ${duplicates}.` : '';
+  const duplicateText = duplicates ? ` Pomini\u0119to duplikaty: ${duplicates}.` : '';
   showNotification(`Import konkurencji: wczytano ${events.length}.${duplicateText}`, 'success');
   return { added: events.length, updated: 0, duplicates };
 }

@@ -12,6 +12,7 @@ const AUTO_SAVE_DB_KEY = 'strongman_autoSave_v1';
 const AUTO_SAVE_PREF_KEY = 'strongman_autosave_enabled_v1';
 const THEME_KEY = 'strongmanTheme_v12';
 const BACKUP_EMAIL_KEY = 'strongman_backup_email_v1';
+const LAST_BACKUP_FILE_KEY = 'strongman_last_backup_file_v1';
 
 let autoSaveTimer = null;
 let autosaveEnabled = true;
@@ -179,8 +180,52 @@ export async function deleteCheckpoint(key) {
 }
 
 // --- Import / Export functions (keep original behavior but use IDB where appropriate) ---
-function buildStateBackup(contextLabel) {
-    const data = getState();
+
+async function rememberLastBackup(backup) {
+    try {
+        await idbPut(LAST_BACKUP_FILE_KEY, {
+            filename: backup.filename,
+            blob: backup.blob,
+            createdAt: Date.now(),
+            contextLabel: backup.contextLabel || ''
+        });
+    } catch (err) {
+        console.warn('rememberLastBackup failed', err);
+    }
+}
+
+async function getLastSavedBackup(contextLabel) {
+    try {
+        const saved = await idbGet(LAST_BACKUP_FILE_KEY);
+        if (saved?.blob && saved?.filename) return saved;
+    } catch (err) {
+        console.warn('getLastSavedBackup failed', err);
+    }
+
+    try {
+        const checkpoints = await CheckpointsDB.getCheckpointsDB();
+        const latest = checkpoints?.[0];
+        if (latest?.state) return buildStateBackup(latest.name || contextLabel || 'Ostatni_punkt_kontrolny', latest.state);
+    } catch (err) {
+        console.warn('latest checkpoint backup fallback failed', err);
+    }
+
+    return null;
+}
+
+function downloadBackupFile(backup) {
+    const url = URL.createObjectURL(backup.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = backup.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function buildStateBackup(contextLabel, sourceState = null) {
+    const data = sourceState || getState();
     const eventName  = (data.eventName || 'Zawody').replace(/[\s\/\\:*?"<>|]/g, '_').slice(0, 30);
     const eventNum   = data.eventNumber || 1;
     const eventTitle = (data.eventTitle || '').replace(/[\s\/\\:*?"<>|]/g, '_').slice(0, 25);
@@ -194,40 +239,45 @@ function buildStateBackup(contextLabel) {
 }
 
 export async function exportStateToFile(contextLabel) {
-    const { filename, blob } = buildStateBackup(contextLabel);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    showNotification(`Backup zapisany: ${filename}`, 'success', 2500);
+    const backup = buildStateBackup(contextLabel);
+    await rememberLastBackup({ ...backup, contextLabel });
+    downloadBackupFile(backup);
+    showNotification(`Backup zapisany: ${backup.filename}`, 'success', 2500);
+    return backup;
 }
 
 export async function shareStateBackup(contextLabel) {
-    const { filename, blob, data } = buildStateBackup(contextLabel);
+    let backup = await getLastSavedBackup(contextLabel);
+    let usedExistingFile = true;
+    if (!backup) {
+        backup = buildStateBackup(contextLabel);
+        usedExistingFile = false;
+        await rememberLastBackup({ ...backup, contextLabel });
+    }
+
     const email = getBackupEmail();
-    const file = new File([blob], filename, { type: 'application/json' });
-    const title = `Backup zawodow: ${data.eventName || 'Strongman'}`;
+    const file = new File([backup.blob], backup.filename, { type: 'application/json' });
+    const data = getState();
+    const title = `Backup zawod\u00f3w: ${data.eventName || 'Strong Man'}`;
     const text = [
-        `Backup stanu zawodow: ${data.eventName || 'Strongman'}`,
+        `Backup stanu zawod\u00f3w: ${data.eventName || 'Strong Man'}`,
         `Konkurencja: ${data.eventNumber || 1} - ${data.eventTitle || ''}`,
+        `Plik: ${backup.filename}`,
+        usedExistingFile ? 'Do\u0142\u0105czony plik to ostatni zapisany backup/punkt kontrolny.' : 'Nie by\u0142o wcze\u015bniejszego pliku, wi\u0119c utworzono nowy backup.',
         email ? `Adres kopii: ${email}` : '',
-        'Zachowaj ten plik. Mozna go wczytac przez Importuj Stan.'
+        'Zachowaj ten plik. Mo\u017cna go wczyta\u0107 przez Importuj Stan.'
     ].filter(Boolean).join('\n');
 
     try {
         if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
             await navigator.share({ files: [file], title, text });
-            showNotification('Backup przekazany do udostepnienia.', 'success');
+            showNotification('Backup z plikiem przekazany do udost\u0119pnienia.', 'success');
             return true;
         }
         if (navigator.share) {
+            downloadBackupFile(backup);
             await navigator.share({ title, text });
-            showNotification('Opis backupu udostepniony. Plik zapisuje lokalnie.', 'info');
-            await exportStateToFile(contextLabel);
+            showNotification('Opis backupu udost\u0119pniony, a plik pobrany na urz\u0105dzenie.', 'info', 4500);
             return true;
         }
     } catch (err) {
@@ -235,14 +285,17 @@ export async function shareStateBackup(contextLabel) {
         console.warn('shareStateBackup failed', err);
     }
 
-    await exportStateToFile(contextLabel);
+    downloadBackupFile(backup);
     if (email) {
         const subject = encodeURIComponent(title);
-        const body = encodeURIComponent(text + '\n\nPlik backupu zostal zapisany na urzadzeniu. Dolacz go do wiadomosci, jesli system nie dodal go automatycznie.');
+        const body = encodeURIComponent(text + '\n\nPlik zosta\u0142 pobrany na urz\u0105dzenie. Do\u0142\u0105cz go jako za\u0142\u0105cznik do tej wiadomo\u015bci, je\u015bli system nie zrobi\u0142 tego automatycznie.');
         window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+    } else {
+        showNotification('Plik backupu zosta\u0142 pobrany. Mo\u017cesz do\u0142\u0105czy\u0107 go r\u0119cznie do maila lub wiadomo\u015bci.', 'info', 5000);
     }
     return true;
 }
+
 
 export async function importStateFromFile(file) {
     return new Promise((resolve) => {
@@ -324,6 +377,7 @@ export async function saveCheckpoint(eventOrName) {
             timestamp: Date.now()
         };
         await CheckpointsDB.saveCheckpoint(record);
+        await rememberLastBackup({ ...buildStateBackup(name, record.state), contextLabel: name });
         showNotification('Punkt kontrolny zapisany.', 'success');
     } catch (err) {
         console.error('saveCheckpoint error', err);
