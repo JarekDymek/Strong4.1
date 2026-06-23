@@ -239,11 +239,10 @@ export async function handleLogoUpload(e) {
 }
 
 export async function handleRemoveLogo() {
-    if (!State.getLogo()) return;
-    if (await UI.showConfirmation("Czy na pewno chcesz usunąć to logo?")) {
+    if (await UI.showConfirmation("Przywrócić domyślne logo Strong Man?")) {
         History.saveToUndoHistory(State.getState());
-        State.setLogo(null); 
-        UI.setLogoUI(null); 
+        State.setLogo(null);
+        UI.setLogoUI(null);
         History.saveToUndoHistory(State.getState());
         Persistence.triggerAutoSave();
     }
@@ -719,6 +718,7 @@ export async function handleCompetitorListAction(e) {
 
 export async function handleManageEvents() {
     document.getElementById('eventDbPanel').classList.add('visible');
+    await EventsDB.dedupeEventsDatabase();
     const events = await EventsDB.getEvents();
     UI.renderEventsList(events);
 }
@@ -731,12 +731,16 @@ export async function handleEventFormSubmit(e) {
         type: document.getElementById('eventTypeDbInput').value,
     };
     if (id) eventData.id = parseInt(id, 10);
-    await EventsDB.saveEvent(eventData);
-    UI.showNotification(id ? 'Konkurencja zaktualizowana!' : 'Konkurencja dodana!', 'success');
-    e.target.reset();
-    document.getElementById('eventId').value = '';
-    document.getElementById('eventFormBtn').textContent = 'Dodaj Konkurencję';
-    await handleManageEvents();
+    try {
+        await EventsDB.saveEvent(eventData);
+        UI.showNotification(id ? 'Konkurencja zaktualizowana!' : 'Konkurencja dodana!', 'success');
+        e.target.reset();
+        document.getElementById('eventId').value = '';
+        document.getElementById('eventFormBtn').textContent = 'Dodaj Konkurencję';
+        await handleManageEvents();
+    } catch (error) {
+        UI.showNotification(error.message || 'Nie udało się zapisać konkurencji.', 'error', 4500);
+    }
 }
 
 export async function handleEventListAction(e) {

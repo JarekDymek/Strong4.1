@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v6-precomp-stability';  // BUG-08: bumped, stale service-worker.js removed
+const CACHE_VERSION = 'v7-mobile-db-logo-update';  // BUG-08: bumped, stale service-worker.js removed
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
@@ -7,11 +7,10 @@ const PRECACHE_URLS = [
   '', 'index.html', 'judge.html', 'live.html', 'css/main.css',
   'js/main.js', 'js/ui.js', 'js/state.js', 'js/history.js',
   'js/focusMode.js', 'js/persistence.js', 'js/judge.js', 'js/handlers.js',
-  'images/icon-192.png', 'images/icon-512.png'
+  'images/icon-192.png', 'images/icon-512.png', 'images/logo-strong-man.png'
 ].map(scopeUrl);
 
 self.addEventListener('install', event => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(PRECACHE).then(cache => cache.addAll(PRECACHE_URLS))
   );

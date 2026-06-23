@@ -440,8 +440,8 @@
 <header class="header">
   <div class="logo-container">
     <img id="logoImg"
-         src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7wn4+X77iPPC90ZXh0Pjwvc3ZnPg=="
-         alt="Logo zawodów">
+         src="images/logo-strong-man.png"
+         alt="Logo Strong Man">
     <div class="logo-actions">
       <button id="selectLogoBtn" class="logo-btn">🖼 Wybierz Logo</button>
     </div>
@@ -898,16 +898,6 @@
 <script type="module" src="js/pwa.js"></script>
 <script type="module" src="js/install.js"></script>
 
-<!-- Service Worker -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js', { scope: './' })
-        .then(r => console.log('SW registered:', r.scope))
-        .catch(e => console.log('SW failed:', e));
-    });
-  }
-</script>
 
 <!-- Przewodnik sędziego — prosty toggle -->
 <script>

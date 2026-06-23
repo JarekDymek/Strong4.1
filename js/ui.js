@@ -4,6 +4,7 @@
 import { getActiveCompetitors, getScores, getCompetitorProfile, getEventHistory } from './state.js';
 import { breakTie } from './domain/scoring.js';
 import { escapeHTML } from './utils.js';
+import { DEFAULT_LOGO_SRC } from './state.js';
 
 export let DOMElements = {};
 
@@ -364,13 +365,11 @@ export function filterCompetitorSelectionList(filter) {
 export function setLogoUI(data) {
     const logoImg = document.getElementById('logoImg');
     const selectLogoBtn = document.getElementById('selectLogoBtn');
-    if (data) {
-        logoImg.src = data;
-        selectLogoBtn.style.display = 'none';
-    } else {
-        logoImg.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzJjM2U1MCIgd2lkdGg9IjE1MHB4IiBoZWlnaHQ9IjE1MHB4Ij48cGF0aCBkPSJNMjIgMTJoLTJ2LTJoLTJ2LTJoLTJ2Mkg4di0ySDZ2MkgydjJoMlYxNGgydjJoMnYyaDJ2LTJoMnYtMmgydjJoMnYtMmgydjJoMnYtMmgydi0yaC0yem0tMTAgNmMtMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDJzLS45IDItMiAyetTTE2IDhjMCAxLjEtLjkgMi0yIDJoLTRjLTEuMSAwLTItLjktMi0yVjZoMHYyYzAgLjU1LjQ1IDEgMSAxczEtLjQ1IDEtMVY2aDJ2MmMwIC41NS40NSAxIDEgMXMxLS40NSAxLTFWNmgwdjJ6Ii8+PC9zdmc+"; // Default logo
-        selectLogoBtn.style.display = '';
-    }
+    if (!logoImg) return;
+
+    logoImg.src = data || DEFAULT_LOGO_SRC;
+    logoImg.alt = data && data !== DEFAULT_LOGO_SRC ? 'Logo zawodów' : 'Logo Strong Man';
+    if (selectLogoBtn) selectLogoBtn.textContent = data && data !== DEFAULT_LOGO_SRC ? 'Zmień Logo' : 'Wybierz Logo';
 }
 
 export function toggleHistoryPanel() {
@@ -597,13 +596,19 @@ export function renderDbCompetitorList(competitors) {
 export function renderEventsList(events) {
     const container = DOMElements.eventListContainer;
     if (!container) return;
+    if (!events || events.length === 0) {
+        container.innerHTML = '<p class="db-empty-state">Brak konkurencji w bazie.</p>';
+        return;
+    }
     container.innerHTML = events.map(e => {
         const safeName = escapeHTML(e.name || '');
         const safeId = escapeHTML(e.id || '');
-        const typeLabel = e.type === 'high' ? 'Więcej=L' : 'Mniej=L';
+        const typeLabel = e.type === 'high' ? 'Więcej = lepiej' : 'Mniej = lepiej';
+        const typeClass = e.type === 'high' ? 'event-type-high' : 'event-type-low';
         return `
-        <div class="competitor-list-item">
-            <span>${safeName} (${escapeHTML(typeLabel)})</span>
+        <div class="competitor-list-item event-list-item">
+            <span class="event-list-name">${safeName}</span>
+            <span class="event-list-type ${typeClass}">${escapeHTML(typeLabel)}</span>
             <div class="competitor-list-actions">
                  <button data-action="edit-event" data-id="${safeId}">Edytuj</button>
                  <button data-action="delete-event" data-id="${safeId}" style="background:var(--error-color);">Usuń</button>

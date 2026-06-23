@@ -1,12 +1,14 @@
 // Plik: js/state.js
 // Cel: Centralny moduł zarządzania stanem aplikacji.
 
+export const DEFAULT_LOGO_SRC = 'images/logo-strong-man.png';
+
 export const state = {
     competitors: [],
     scores: {},
     eventNumber: 1,
     eventHistory: [],
-    logoData: null,
+    logoData: DEFAULT_LOGO_SRC,
     currentEventType: 'high',
     competitorProfiles: {},
     allDbCompetitors: [],
@@ -38,7 +40,7 @@ export function getEventType() { return state.currentEventType; }
 export function getEventHistory() { return state.eventHistory; }
 export function getScores() { return state.scores; }
 export function getEventNumber() { return state.eventNumber; }
-export function getLogo() { return state.logoData; }
+export function getLogo() { return state.logoData || DEFAULT_LOGO_SRC; }
 export function getAllDbEvents() { return state.allDbEvents; }
 export function getEventName() { return state.eventName; }
 export function getEventLocation() { return state.eventLocation; }
@@ -58,6 +60,7 @@ export function restoreState(loadedState) {
     state.draftResults = (loadedState.draftResults && typeof loadedState.draftResults === 'object') ? loadedState.draftResults : {};
     if (!state.eventTitle) state.eventTitle = `Konkurencja ${state.eventNumber || 1}`;
     if (!state.currentEventType) state.currentEventType = 'high';
+    if (!state.logoData) state.logoData = DEFAULT_LOGO_SRC;
     if (!state.competitionStage) {
         state.competitionStage = state.competitors?.length && state.eventHistory?.length === 0
             ? 'draw'
@@ -72,7 +75,7 @@ export function resetState() {
     state.eventHistory = [];
     state.currentEventType = 'high';
     state.focusModeIndex = -1;
-    state.logoData = null;
+    state.logoData = DEFAULT_LOGO_SRC;
     state.eventName = '';
     state.eventLocation = '';
     state.eventTitle = 'Konkurencja 1';
@@ -172,7 +175,7 @@ export function removeEventFromHistory(eventNr) {
     state.eventHistory.splice(idx, 1);
 }
 
-export function setLogo(data) { state.logoData = data; }
+export function setLogo(data) { state.logoData = data || DEFAULT_LOGO_SRC; }
 
 export function shuffleCompetitors() {
     for (let i = state.competitors.length - 1; i > 0; i--) {
