@@ -804,6 +804,39 @@ function showStatus(msg, type) {
     setTimeout(() => el.classList.remove('show'), 4000);
 }
 
+function stopJudgeRuntime() {
+    if (pollTimer) clearInterval(pollTimer);
+    if (retryTimer) clearInterval(retryTimer);
+    if (ackTimer) clearInterval(ackTimer);
+    pollTimer = null;
+    retryTimer = null;
+    ackTimer = null;
+    if (sessionUnsubscribe) {
+        try { sessionUnsubscribe(); } catch (_) {}
+        sessionUnsubscribe = null;
+    }
+    if (ackUnsubscribe) {
+        try { ackUnsubscribe(); } catch (_) {}
+        ackUnsubscribe = null;
+    }
+}
+
+function exitJudgeMode() {
+    loadQueue();
+    const eventKey = currentEventKey();
+    const hasPending = pendingQueue.some(item =>
+        item.token === currentToken && item.eventKey === eventKey && !item.acked
+    );
+    const message = hasPending
+        ? 'Sa wyniki oczekujace na potwierdzenie. Wyjsc z panelu sedziego pomocniczego?'
+        : 'Wyjsc z panelu sedziego pomocniczego?';
+    if (!confirm(message)) return;
+    stopJudgeRuntime();
+    location.href = new URL('index.html', location.href).href;
+}
+
+document.getElementById('exitJudgeBtn')?.addEventListener('click', exitJudgeMode);
+
 function esc(s) {
     return String(s)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')

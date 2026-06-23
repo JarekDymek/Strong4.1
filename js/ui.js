@@ -86,8 +86,9 @@ export function calculateAge(birthDateString) {
 export function showNotification(message, type = 'success', duration = 3000) {
     if (!DOMElements.notificationBar) return;
     const bar = DOMElements.notificationBar;
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-    bar.innerHTML = `${icons[type] || ''} ${message}`;
+    const icons = { success: 'OK', error: '!', info: 'i' };
+    const safeMessage = message == null ? '' : String(message);
+    bar.textContent = `${icons[type] || ''} ${safeMessage}`.trim();
     bar.className = type;
     bar.classList.add('show');
     setTimeout(() => bar.classList.remove('show'), duration);
@@ -158,11 +159,11 @@ export function showCompetitorDetails(profile) {
     DOMElements.competitorDetailName.textContent = profile.name;
     DOMElements.competitorDetailPhoto.src = profile.photo || 'https://placehold.co/150x150/eee/333?text=?';
     DOMElements.competitorDetailMeta.innerHTML = `
-        <p><strong>Wiek:</strong> ${age ? age + ' lat' : 'Brak danych'}</p>
-        <p><strong>Wzrost:</strong> ${profile.height ? profile.height + ' cm' : 'Brak danych'}</p>
-        <p><strong>Waga:</strong> ${profile.weight ? profile.weight + ' kg' : 'Brak danych'}</p>
-        <p><strong>Zamieszkanie:</strong> ${profile.residence || 'Brak danych'}</p>
-        <p><strong>Kategorie:</strong> ${categoriesText}</p>
+        <p><strong>Wiek:</strong> ${escapeHTML(age ? age + ' lat' : 'Brak danych')}</p>
+        <p><strong>Wzrost:</strong> ${escapeHTML(profile.height ? profile.height + ' cm' : 'Brak danych')}</p>
+        <p><strong>Waga:</strong> ${escapeHTML(profile.weight ? profile.weight + ' kg' : 'Brak danych')}</p>
+        <p><strong>Zamieszkanie:</strong> ${escapeHTML(profile.residence || 'Brak danych')}</p>
+        <p><strong>Kategorie:</strong> ${escapeHTML(categoriesText)}</p>
     `;
     DOMElements.competitorDetailNotes.textContent = profile.notes || 'Brak dodatkowych informacji.';
     DOMElements.competitorDetailModal.classList.add('visible');
@@ -492,17 +493,19 @@ export function renderFinalSummary() {
             const medal  = displayPlace === 1 ? '🥇' : displayPlace === 2 ? '🥈' : displayPlace === 3 ? '🥉' : displayPlace;
             const mClass = displayPlace === 1 ? 'gold' : displayPlace === 2 ? 'silver' : displayPlace === 3 ? 'bronze' : '';
             const profile = getCompetitorProfile(data.name) || {};
+            const safeName = escapeHTML(data.name);
+            const safePhoto = escapeHTML(profile.photo || 'https://placehold.co/40x40/eee/333?text=?');
             const tieHtml = data.tieReason
-                ? `<span class="tie-info" tabindex="0">${data.tieInfo}<span class="tooltip">${data.tieReason}</span></span>`
+                ? `<span class="tie-info" tabindex="0">${escapeHTML(data.tieInfo)}<span class="tooltip">${escapeHTML(data.tieReason)}</span></span>`
                 : '';
             html += `<tr class="${mClass}">
-              <td style="text-align:center;font-size:1.3rem;">${medal}</td>
+              <td style="text-align:center;font-size:1.3rem;">${escapeHTML(medal)}</td>
               <td><div class="competitor-cell">
-                <img src="${profile.photo || 'https://placehold.co/40x40/eee/333?text=?'}"
-                     class="competitor-photo-thumb" alt="${data.name}">
-                <span>${data.name} ${tieHtml}</span>
+                <img src="${safePhoto}"
+                     class="competitor-photo-thumb" alt="${safeName}">
+                <span>${safeName} ${tieHtml}</span>
               </div></td>
-              <td style="text-align:center;font-weight:700;font-size:1.1rem;">${data.score}</td>
+              <td style="text-align:center;font-weight:700;font-size:1.1rem;">${escapeHTML(data.score)}</td>
             </tr>`;
         });
         html += '</tbody></table></div>';
@@ -519,8 +522,8 @@ export function renderFinalSummary() {
             const typeLabel = ev.type === 'low' ? '⬇️ Mniej=Lepiej' : '⬆️ Więcej=Lepiej';
             html += `<div style="margin-bottom:20px;">
               <h4 style="margin-bottom:6px;">
-                Konkurencja ${ev.nr}: ${ev.name}
-                <small style="font-weight:400;color:#888;"> — ${typeLabel}</small>
+                Konkurencja ${escapeHTML(ev.nr)}: ${escapeHTML(ev.name)}
+                <small style="font-weight:400;color:#888;"> — ${escapeHTML(typeLabel)}</small>
               </h4>
               <div class="table-wrapper"><table>
                 <thead><tr>
@@ -539,11 +542,15 @@ export function renderFinalSummary() {
             sorted.forEach((res, idx) => {
                 const place = res.place === '-' ? '-' : (idx + 1);
                 const isDnf = res.place === '-';
+                const safePlace = escapeHTML(place);
+                const safeName = escapeHTML(res.name || '');
+                const safeResult = escapeHTML(res.result || '-');
+                const safePoints = escapeHTML(res.points ?? '');
                 html += `<tr ${isDnf ? 'style="opacity:0.6;"' : ''}>
-                  <td style="text-align:center;">${isDnf ? '—' : place}</td>
-                  <td>${res.name}</td>
-                  <td style="text-align:center;font-family:monospace;">${res.result || '—'}</td>
-                  <td style="text-align:center;font-weight:600;">${res.points}</td>
+                  <td style="text-align:center;">${isDnf ? '-' : safePlace}</td>
+                  <td>${safeName}</td>
+                  <td style="text-align:center;font-family:monospace;">${safeResult}</td>
+                  <td style="text-align:center;font-weight:600;">${safePoints}</td>
                 </tr>`;
             });
 
@@ -572,29 +579,38 @@ export function populateCompetitorForm(competitor) {
 export function renderDbCompetitorList(competitors) {
     const container = DOMElements.competitorListContainer;
     if (!container) return;
-    container.innerHTML = competitors.map(c => `
+    container.innerHTML = competitors.map(c => {
+        const safeName = escapeHTML(c.name || '');
+        const safeId = escapeHTML(c.id || '');
+        return `
         <div class="competitor-list-item">
-            <span>${c.name}</span>
+            <span>${safeName}</span>
             <div class="competitor-list-actions">
-                <button data-action="edit-competitor" data-id="${c.id}">Edytuj</button>
-                <button data-action="delete-competitor" data-id="${c.id}" style="background:var(--error-color);">Usuń</button>
+                <button data-action="edit-competitor" data-id="${safeId}">Edytuj</button>
+                <button data-action="delete-competitor" data-id="${safeId}" style="background:var(--error-color);">Usuń</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 export function renderEventsList(events) {
     const container = DOMElements.eventListContainer;
     if (!container) return;
-    container.innerHTML = events.map(e => `
+    container.innerHTML = events.map(e => {
+        const safeName = escapeHTML(e.name || '');
+        const safeId = escapeHTML(e.id || '');
+        const typeLabel = e.type === 'high' ? 'Więcej=L' : 'Mniej=L';
+        return `
         <div class="competitor-list-item">
-            <span>${e.name} (${e.type === 'high' ? 'Więcej=L' : 'Mniej=L'})</span>
+            <span>${safeName} (${escapeHTML(typeLabel)})</span>
             <div class="competitor-list-actions">
-                 <button data-action="edit-event" data-id="${e.id}">Edytuj</button>
-                 <button data-action="delete-event" data-id="${e.id}" style="background:var(--error-color);">Usuń</button>
+                 <button data-action="edit-event" data-id="${safeId}">Edytuj</button>
+                 <button data-action="delete-event" data-id="${safeId}" style="background:var(--error-color);">Usuń</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 export function populateEventForm(event) {
@@ -608,8 +624,8 @@ export function populateEventForm(event) {
 export function showSelectEventModal(events) {
     const list = DOMElements.selectEventList;
     list.innerHTML = events.map(e => `
-        <div class="lap-item" data-action="select-event" data-id="${e.id}">
-            ${e.name}
+        <div class="lap-item" data-action="select-event" data-id="${escapeHTML(e.id)}">
+            ${escapeHTML(e.name)}
         </div>
     `).join('');
     DOMElements.selectEventModal.classList.add('visible');

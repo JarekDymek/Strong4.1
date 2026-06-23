@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v5-safety-fixes';  // BUG-08: bumped, stale service-worker.js removed
+const CACHE_VERSION = 'v6-precomp-stability';  // BUG-08: bumped, stale service-worker.js removed
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
