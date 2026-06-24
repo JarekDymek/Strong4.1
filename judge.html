@@ -609,8 +609,8 @@ function renderJudgeScreen(softUpdate = false) {
                      ${(pending || acked) ? 'readonly' : ''}
                      oninput="onInputChange(this)"
                      onkeydown="if(event.key==='Enter') window.sendResult('${esc(name)}')">
-              <button class="send-btn" id="sendbtn_${safeId}"
-                      onclick="window.sendResult('${esc(name)}')">✓</button>
+              <button class="send-btn ${acked ? 'sent' : ''}" id="sendbtn_${safeId}"
+                      onclick="window.sendResult('${esc(name)}')">${pending ? '...' : 'OK'}</button>
             </div>
             <div class="sent-info">✅ Wysłano do sędziego głównego</div>
           </div>
@@ -706,12 +706,19 @@ async function processQueue() {
     saveQueue();
 }
 
-function markAcked(resultId) {
+function markAcked(resultId, ackData = {}) {
     loadQueue();
     const item = pendingQueue.find(p => p.resultId === resultId && p.token === currentToken);
     if (!item) return;
+
     item.acked = true;
     saveQueue();
+
+    const activeEventKey = currentEventKey();
+    const ackEventKey = ackData?.eventKey || item.eventKey || '';
+    const belongsToCurrentEvent = Boolean(activeEventKey) && (item.eventKey === activeEventKey || ackEventKey === activeEventKey);
+    if (!belongsToCurrentEvent) return;
+
     setCardState(item.name, 'acked', 'odebrano');
     showStatus(`OK Sedzia glowny odebral wynik: ${item.name}`, 'ok');
 }
@@ -737,7 +744,7 @@ function startAckWatcher() {
             const ackRef = fbFn.ref(firebaseDb, `sessions/${sid}/acks/${currentToken}`);
             ackUnsubscribe = fbFn.onValue(ackRef, (snapshot) => {
                 if (!snapshot.exists()) return;
-                Object.keys(snapshot.val() || {}).forEach(markAcked);
+                Object.entries(snapshot.val() || {}).forEach(([resultId, ackData]) => markAcked(resultId, ackData || {}));
             });
         } catch (err) {
             console.warn('[Judge] ACK watcher error:', err.message);
@@ -748,7 +755,7 @@ function startAckWatcher() {
 window.sendResult = async function(name) {
     const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
     const input  = document.getElementById('input_' + safeId);
-    if (!input || !currentToken) return;
+    if (!input || !currentToken || input.readOnly) return;
     const result = input.value.trim();
     if (result === '') { input.focus(); return; }
 

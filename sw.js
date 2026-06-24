@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v10-judge-event-key';  // BUG-08: bumped, stale service-worker.js removed
+const CACHE_VERSION = 'v11-judge-ack-scope';  // BUG-08: bumped, stale service-worker.js removed
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
