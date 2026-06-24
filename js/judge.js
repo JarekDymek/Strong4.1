@@ -114,23 +114,42 @@ export function getSessionId() {
 // TOKENY SĘDZIÓW
 // ─────────────────────────────────────────────────────────────
 
-export async function createJudgeToken(label, assignedCompetitors) {
+function normalizeEventNumber(eventNumber) {
+    const parsed = Number(eventNumber);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    const fromDom = Number(document.getElementById('progCurrentNum')?.textContent);
+    return Number.isFinite(fromDom) && fromDom > 0 ? fromDom : 1;
+}
+
+function buildEventKey(sid, eventNumber, eventTitle, eventType) {
+    return [
+        sid || getSessionId() || '',
+        normalizeEventNumber(eventNumber),
+        eventTitle || '',
+        eventType || 'high'
+    ].join('|');
+}
+
+export async function createJudgeToken(label, assignedCompetitors, eventTitle = '', eventType = 'high', eventNumber = 1) {
     const sid   = getSessionId() || await initSession();
     const token = 'j_' + Math.random().toString(36).slice(2, 9);
     const judges = getJudges();
     judges.push({ token, label, assignedCompetitors, active: true, createdAt: Date.now() });
     localStorage.setItem(LS_JUDGES_KEY, JSON.stringify(judges));
-    await publishSessionData(assignedCompetitors, token, label, sid);
+    await publishSessionData(assignedCompetitors, token, label, sid, eventTitle, eventType, eventNumber);
     return token;
 }
 
-export async function publishSessionData(competitors, token, label, sid) {
-    const eventTitle = document.getElementById('eventTitle')?.textContent?.trim() || '';
-    const eventType  = localStorage.getItem('strongman_current_event_type') || 'high';
+export async function publishSessionData(competitors, token, label, sid, eventTitleArg = '', eventTypeArg = '', eventNumberArg = 1) {
+    const sessionSid = sid || getSessionId();
+    const eventTitle = eventTitleArg || document.getElementById('eventTitle')?.textContent?.trim() || '';
+    const eventType  = eventTypeArg || localStorage.getItem('strongman_current_event_type') || 'high';
+    const eventNumber = normalizeEventNumber(eventNumberArg);
     const data = {
-        sid: sid || getSessionId(),
+        sid: sessionSid,
         token, label, competitors,
-        eventTitle, eventType,
+        eventTitle, eventType, eventNumber,
+        eventKey: buildEventKey(sessionSid, eventNumber, eventTitle, eventType),
         ts: Date.now()
     };
 
@@ -146,9 +165,11 @@ export async function publishSessionData(competitors, token, label, sid) {
     localStorage.setItem(LS_SESSION_KEY + '_' + token, JSON.stringify(data));
 }
 
-export async function refreshAllSessions(competitors, eventTitle, eventType) {
+export async function refreshAllSessions(competitors, eventTitle, eventType, eventNumber = 1) {
     const judges = getJudges();
     const sid    = getSessionId();
+    const normalizedEventNumber = normalizeEventNumber(eventNumber);
+    const eventKey = buildEventKey(sid, normalizedEventNumber, eventTitle, eventType);
     for (const j of judges) {
         if (!j.active) continue;
 
@@ -169,7 +190,10 @@ export async function refreshAllSessions(competitors, eventTitle, eventType) {
         const data = {
             sid, token: j.token, label: j.label,
             competitors: orderedCompetitors,
-            eventTitle, eventType, ts: Date.now()
+            eventTitle, eventType,
+            eventNumber: normalizedEventNumber,
+            eventKey,
+            ts: Date.now()
         };
         if (firebaseMode && firebaseDb) {
             try {
@@ -267,13 +291,22 @@ function _startFirebaseListening() {
                             resultId,
                             name,
                             result: data.result,
+                            eventKey: data.eventKey || '',
+                            eventNumber: data.eventNumber || '',
                             receivedAt: Date.now(),
                         });
                     } catch (_) {}
                     remove(ref(firebaseDb, `sessions/${sid}/results/${token}/${key}`))
                         .catch(() => {});
                 };
-                if (onResultCb) onResultCb(name, data.result, judge?.label || 'Sedzia', { resultId, acknowledge });
+                if (onResultCb) onResultCb(name, data.result, judge?.label || 'Sedzia', {
+                    resultId,
+                    eventKey: data.eventKey || '',
+                    eventNumber: data.eventNumber || '',
+                    eventTitle: data.eventTitle || '',
+                    eventType: data.eventType || '',
+                    acknowledge
+                });
             });
         });
     }, (err) => {
@@ -302,7 +335,14 @@ function _pollLocalStorage() {
                     } catch (_) {}
                     localStorage.removeItem(key);
                 };
-                if (onResultCb) onResultCb(name, data.result, j.label, { resultId, acknowledge });
+                if (onResultCb) onResultCb(name, data.result, j.label, {
+                    resultId,
+                    eventKey: data.eventKey || '',
+                    eventNumber: data.eventNumber || '',
+                    eventTitle: data.eventTitle || '',
+                    eventType: data.eventType || '',
+                    acknowledge
+                });
             } catch { localStorage.removeItem(key); }
         });
     });

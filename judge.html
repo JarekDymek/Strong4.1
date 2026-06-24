@@ -446,7 +446,7 @@ async function connectFirebase() {
             const prevCompetitors = (currentSession?.competitors || []).join(',');
             const newCompetitors  = (updated.competitors || []).join(',');
             const orderChanged    = prevCompetitors !== newCompetitors;
-            const eventChanged    = currentSession && updated.eventTitle !== currentSession.eventTitle;
+            const eventChanged    = hasSessionEventChanged(currentSession, updated);
             const isFirstLoad     = !currentSession;
 
             if (isFirstLoad) {
@@ -455,20 +455,24 @@ async function connectFirebase() {
             } else if (orderChanged || eventChanged) {
                 // Zachowaj wpisane wartości przed przebudową
                 const savedInputs = {};
-                document.querySelectorAll('.judge-result-input:not([readonly])').forEach(inp => {
-                    if (inp.value.trim()) savedInputs[inp.dataset.name] = inp.value;
-                });
+                if (!eventChanged) {
+                    document.querySelectorAll('.judge-result-input:not([readonly])').forEach(inp => {
+                        if (inp.value.trim()) savedInputs[inp.dataset.name] = inp.value;
+                    });
+                }
                 currentSession = updated;
                 renderJudgeScreen(false);
-                Object.entries(savedInputs).forEach(([name, val]) => {
-                    const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
-                    const inp = document.getElementById('input_' + safeId);
-                    if (inp && !inp.readOnly) {
-                        inp.value = val;
-                        inp.classList.toggle('filled', val !== '');
-                    }
-                });
-                showStatus('🔄 Nowa kolejność startowa!', 'ok');
+                if (!eventChanged) {
+                    Object.entries(savedInputs).forEach(([name, val]) => {
+                        const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+                        const inp = document.getElementById('input_' + safeId);
+                        if (inp && !inp.readOnly) {
+                            inp.value = val;
+                            inp.classList.toggle('filled', val !== '');
+                        }
+                    });
+                }
+                showStatus(eventChanged ? 'Nowa konkurencja - pola odblokowane.' : 'Nowa kolejnosc startowa!', 'ok');
             } else {
                 currentSession = updated;
                 renderJudgeScreen(true); // tylko meta
@@ -517,7 +521,7 @@ function connectLocalStorage() {
                 const prevCompetitors = (currentSession?.competitors || []).join(',');
                 const newCompetitors  = (updated.competitors || []).join(',');
                 const orderChanged    = prevCompetitors !== newCompetitors;
-                const eventChanged    = updated.eventTitle !== currentSession?.eventTitle;
+                const eventChanged    = hasSessionEventChanged(currentSession, updated);
 
                 currentSession = updated;
 
@@ -525,20 +529,24 @@ function connectLocalStorage() {
                     // Kolejność lub konkurencja się zmieniła — przebuduj karty
                     // Zachowaj wpisane wyniki dla zawodników których jeszcze nie wysłano
                     const savedInputs = {};
-                    document.querySelectorAll('.judge-result-input:not([readonly])').forEach(inp => {
-                        if (inp.value.trim()) savedInputs[inp.dataset.name] = inp.value;
-                    });
-                    renderJudgeScreen(false); // pełna przebudowa
+                    if (!eventChanged) {
+                        document.querySelectorAll('.judge-result-input:not([readonly])').forEach(inp => {
+                            if (inp.value.trim()) savedInputs[inp.dataset.name] = inp.value;
+                        });
+                    }
+                    renderJudgeScreen(false); // pelna przebudowa
                     // Przywróć wpisane wartości
-                    Object.entries(savedInputs).forEach(([name, val]) => {
-                        const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
-                        const inp = document.getElementById('input_' + safeId);
-                        if (inp && !inp.readOnly) {
-                            inp.value = val;
-                            inp.classList.toggle('filled', val !== '');
-                        }
-                    });
-                    showStatus('🔄 Kolejność zaktualizowana!', 'ok');
+                    if (!eventChanged) {
+                        Object.entries(savedInputs).forEach(([name, val]) => {
+                            const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+                            const inp = document.getElementById('input_' + safeId);
+                            if (inp && !inp.readOnly) {
+                                inp.value = val;
+                                inp.classList.toggle('filled', val !== '');
+                            }
+                        });
+                    }
+                    showStatus(eventChanged ? 'Nowa konkurencja - pola odblokowane.' : 'Kolejnosc zaktualizowana!', 'ok');
                 } else {
                     // Tylko dane meta (np. typ) — lekka aktualizacja
                     renderJudgeScreen(true);
@@ -626,8 +634,23 @@ function makeResultId(name) {
     return `${currentToken}_${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
+function sessionEventKey(session) {
+    if (!session) return '';
+    return session.eventKey || [
+        session.sid || currentSid || '',
+        session.eventNumber || '',
+        session.eventTitle || '',
+        session.eventType || ''
+    ].join('|');
+}
+
+function hasSessionEventChanged(previousSession, nextSession) {
+    if (!previousSession || !nextSession) return false;
+    return sessionEventKey(previousSession) !== sessionEventKey(nextSession);
+}
+
 function currentEventKey() {
-    return `${currentSid || currentSession?.sid || ''}|${currentSession?.eventTitle || ''}|${currentSession?.eventType || ''}`;
+    return sessionEventKey(currentSession);
 }
 
 function setCardState(name, status, message) {
@@ -740,6 +763,7 @@ window.sendResult = async function(name) {
         eventKey,
         eventTitle: currentSession?.eventTitle || '',
         eventType: currentSession?.eventType || '',
+        eventNumber: currentSession?.eventNumber || '',
         createdAt: Date.now(),
         tryCount: 0,
     };

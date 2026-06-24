@@ -287,6 +287,12 @@ function updateCompetitionProgress() {
 
 function startJudgeResultPolling() {
     Judge.startPolling((name, result, judgeLabel, meta = {}) => {
+        const resultEventNumber = Number(meta.eventNumber);
+        if (Number.isFinite(resultEventNumber) && resultEventNumber > 0 && resultEventNumber !== State.getEventNumber()) {
+            if (typeof meta.acknowledge === 'function') Promise.resolve(meta.acknowledge()).catch(() => {});
+            UI.showNotification(`${judgeLabel}: pominieto spozniony wynik (${name}) z innej konkurencji.`, 'warning', 4000);
+            return;
+        }
         const input = document.querySelector(`#resultsTable .resultInput[data-name="${CSS.escape(name)}"]`);
         if (!input || input.readOnly) return;
         History.saveToUndoHistory(State.getState());
@@ -733,7 +739,8 @@ function setupEventListeners() {
             Judge.refreshAllSessions(
                 State.getActiveCompetitors(),
                 State.getEventTitle(),
-                State.getEventType()
+                State.getEventType(),
+                State.getEventNumber()
             );
         }
     });
@@ -747,7 +754,8 @@ function setupEventListeners() {
             Judge.refreshAllSessions(
                 State.getActiveCompetitors(),
                 State.getEventTitle(),
-                State.getEventType()
+                State.getEventType(),
+                State.getEventNumber()
             );
         }
     });
@@ -761,7 +769,8 @@ function setupEventListeners() {
             Judge.refreshAllSessions(
                 State.getActiveCompetitors(),
                 State.getEventTitle(),
-                State.getEventType()
+                State.getEventType(),
+                State.getEventNumber()
             );
         }
     });
@@ -962,7 +971,13 @@ function setupEventListeners() {
 
         // Upewnij się że sesja jest aktywna (synchronicznie jeśli możliwe)
         await Judge.initSession();
-        const token = await Judge.createJudgeToken(label, assignedCompetitors);
+        const token = await Judge.createJudgeToken(
+            label,
+            assignedCompetitors,
+            State.getEventTitle(),
+            State.getEventType(),
+            State.getEventNumber()
+        );
         const url   = Judge.getJudgeURL(token);
 
         // ── Kopiowanie do schowka ──
