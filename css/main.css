@@ -2059,6 +2059,136 @@ body.trial-expired .event-meta-header {
   }
 }
 
+.competitor-order-badge {
+  display: none;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg,#FF4500,#FF7A1A);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(255,69,0,0.24);
+}
+.competitor-select-item.is-selected {
+  border-color: rgba(255,69,0,0.45);
+  background: rgba(255,69,0,0.05);
+}
+.competitor-select-item.is-selected .competitor-order-badge {
+  display: inline-flex;
+}
+
+.checkpoint-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 6px 12px;
+  border-bottom: 1px solid rgba(148,163,184,0.35);
+  margin-bottom: 4px;
+}
+.checkpoint-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: #1E3A5F;
+}
+.checkpoint-select,
+.checkpoint-select-all input {
+  width: 24px;
+  height: 24px;
+  accent-color: #FF4500;
+  flex: 0 0 24px;
+}
+.checkpoint-delete-selected {
+  min-height: 42px;
+}
+.checkpoint-empty {
+  padding: 14px 8px;
+  color: #64748B;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .checkpoint-bulk-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .checkpoint-delete-selected {
+    width: 100%;
+  }
+  .event-select-row {
+    grid-template-columns: 34px minmax(0, 1fr) 32px;
+    grid-template-areas: "badge meta checkbox";
+    align-items: center;
+    height: auto;
+    min-height: 72px;
+    overflow: hidden;
+    gap: 8px 10px;
+  }
+  .event-select-row.selected {
+    grid-template-areas:
+      "badge meta checkbox"
+      ". controls controls";
+    align-items: start;
+    min-height: 124px;
+    row-gap: 14px;
+  }
+  .event-order-badge {
+    grid-area: badge;
+    align-self: start;
+    margin-top: 3px;
+  }
+  .event-select-meta {
+    grid-area: meta;
+    align-self: center;
+    overflow: hidden;
+  }
+  .event-select-row.selected .event-select-meta {
+    align-self: start;
+  }
+  .event-select-row input[type="checkbox"] {
+    grid-area: checkbox;
+    align-self: start;
+    margin-top: 4px;
+  }
+  .event-order-controls {
+    grid-area: controls;
+    width: 100%;
+    display: flex;
+    justify-content: stretch;
+    gap: 8px;
+    padding-top: 0;
+  }
+  .event-order-move {
+    flex: 1 1 0;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+  }
+  .event-select-row:not(.selected) .event-order-controls {
+    display: none;
+  }
+  .event-select-name {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: auto;
+    font-size: 0.94rem;
+    line-height: 1.18;
+  }
+  .event-select-type {
+    margin-top: 3px;
+    font-size: 0.74rem;
+    line-height: 1.15;
+  }
+}
+
 /* Final guard: collapsed panels must not leave visible but untouchable content */
 .collapsible-panel.is-collapsed > .collapsible-body {
   max-height: 0 !important;

@@ -18,6 +18,15 @@ let autoSaveTimer = null;
 let autosaveEnabled = true;
 const AUTOSAVE_DELAY = 1000; // ms debounce
 
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // --- IndexedDB helper (very small key-value store) ---
 function openIDB() {
   return new Promise((resolve, reject) => {
@@ -403,7 +412,21 @@ export async function handleShowCheckpoints(containerId, listId) {
             showNotification('Interfejs punktów kontrolnych nie znaleziony.', 'error');
             return;
         }
-        list.innerHTML = cps.map(cp => {
+        if (!cps.length) {
+            list.innerHTML = '<p class="checkpoint-empty">Brak zapisanych punktow kontrolnych.</p>';
+            container.classList.add('visible');
+            return;
+        }
+        const toolbar = `
+            <div class="checkpoint-bulk-toolbar">
+                <label class="checkpoint-select-all">
+                    <input type="checkbox" data-action="select-all-checkpoints">
+                    <span>Zaznacz wszystkie</span>
+                </label>
+                <button data-action="delete-selected-checkpoints" class="btn small danger checkpoint-delete-selected" type="button">Usun zaznaczone</button>
+            </div>
+        `;
+        list.innerHTML = toolbar + cps.map(cp => {
             const when  = cp.timestamp ? (new Date(cp.timestamp)).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
             const day   = cp.timestamp ? (new Date(cp.timestamp)).toLocaleDateString('pl-PL') : '';
             const isAuto = cp.auto === true;
@@ -412,15 +435,17 @@ export async function handleShowCheckpoints(containerId, listId) {
             const badge = isAuto
                 ? `<span style="font-size:0.72rem;background:#2980b9;color:#fff;padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap;">auto</span>`
                 : `<span style="font-size:0.72rem;background:#27ae60;color:#fff;padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap;">ręczny</span>`;
-            const label = cp.name || 'Bez nazwy';
-            return `<li class="checkpoint-item" data-key="${cp.key}" style="display:flex;justify-content:space-between;align-items:center;padding:8px 6px;border-bottom:1px solid #eee;gap:8px;">
+            const label = escapeHTML(cp.name || 'Bez nazwy');
+            const safeKey = escapeHTML(cp.key);
+            return `<li class="checkpoint-item" data-key="${safeKey}" style="display:flex;justify-content:space-between;align-items:center;padding:8px 6px;border-bottom:1px solid #eee;gap:8px;">
+                <input type="checkbox" class="checkpoint-select" data-key="${safeKey}" aria-label="Zaznacz punkt kontrolny">
                 <div style="flex:1;min-width:0;">
                   <div style="font-weight:600;font-size:0.95rem;white-space:normal;line-height:1.3;">${icon} ${label}${badge}</div>
                   <div style="font-size:0.78rem;color:#888;margin-top:2px;">${day} ${when}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
-                  <button data-action="load" data-key="${cp.key}" class="btn small" style="padding:6px 12px;font-size:0.85rem;">Wczytaj</button>
-                  <button data-action="delete" data-key="${cp.key}" class="btn small danger" style="padding:6px 12px;font-size:0.85rem;">Usuń</button>
+                  <button data-action="load" data-key="${safeKey}" class="btn small" style="padding:6px 12px;font-size:0.85rem;">Wczytaj</button>
+                  <button data-action="delete" data-key="${safeKey}" class="btn small danger" style="padding:6px 12px;font-size:0.85rem;">Usuń</button>
                 </div>
             </li>`;
         }).join('');
@@ -433,6 +458,35 @@ export async function handleShowCheckpoints(containerId, listId) {
 
 export async function handleCheckpointListActions(e, refreshFullUI, containerId, listId) {
     try {
+        const list = listId
+            ? document.getElementById(listId)
+            : DOMElements.checkpointList;
+        const selectAll = e.target.closest?.('[data-action="select-all-checkpoints"]');
+        if (selectAll && list) {
+            list.querySelectorAll('.checkpoint-select').forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+            return;
+        }
+
+        const deleteSelected = e.target.closest?.('[data-action="delete-selected-checkpoints"]');
+        if (deleteSelected && list) {
+            const keys = Array.from(list.querySelectorAll('.checkpoint-select:checked'))
+                .map(cb => cb.getAttribute('data-key'))
+                .filter(Boolean);
+            if (keys.length === 0) {
+                showNotification('Zaznacz punkty kontrolne do usuniecia.', 'info');
+                return;
+            }
+            if (!await showConfirmation(`Usunac ${keys.length} zaznaczonych punktow kontrolnych?`)) return;
+            for (const selectedKey of keys) {
+                await deleteCheckpoint(selectedKey);
+            }
+            showNotification(`Usunieto ${keys.length} punktow kontrolnych.`, 'success');
+            await handleShowCheckpoints(containerId, listId);
+            return;
+        }
+
         const btn = e.target.closest('button');
         if (!btn) return;
         const action = btn.getAttribute('data-action');
@@ -460,7 +514,9 @@ export async function handleCheckpointListActions(e, refreshFullUI, containerId,
                 restoreState(cp.state);
                 clearHistory();
                 // Ukryj listę po wczytaniu
-                const container = document.getElementById('checkpointListContainer');
+                const container = containerId
+                    ? document.getElementById(containerId)
+                    : document.getElementById('checkpointListContainer');
                 if (container) container.classList.remove('visible');
                 showNotification(`Wczytano: ${cp.name}`, 'success');
                 if (typeof refreshFullUI === 'function') refreshFullUI();

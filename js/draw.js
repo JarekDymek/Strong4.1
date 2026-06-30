@@ -13,11 +13,12 @@ const $ = sel => document.querySelector(sel);
 /* ─────────────────────────────────────────────
    DRAW VIEW — renderowanie ekranu losowania
    ───────────────────────────────────────────── */
-export function openDrawView(competitorList, onStart) {
+export function openDrawView(competitorList, onStart, options = {}) {
     competitors = [...competitorList];
     onStartCb   = onStart;
     currentAngle = 0;
     spinning     = false;
+    const allowStartImmediately = options.allowStartImmediately === true;
 
     const view = el('drawView');
     if (!view) return;
@@ -37,8 +38,8 @@ export function openDrawView(competitorList, onStart) {
 
     // Resetuj stan przycisków
     el('drawSpinBtn').disabled    = false;
-    el('drawStartBtn').disabled   = true;
-    el('drawSpinBtn').textContent = '🎰 Losuj kolejność';
+    el('drawStartBtn').disabled   = !allowStartImmediately;
+    el('drawSpinBtn').textContent = allowStartImmediately ? '🎰 Losuj przed startem' : '🎰 Losuj kolejność';
 }
 
 export function closeDrawView() {

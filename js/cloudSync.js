@@ -5,7 +5,7 @@ import { FIREBASE_CONFIG } from './judge.js';
 import { getState, restoreState } from './state.js';
 import { isTrialMode } from './trialMode.js';
 
-export const CLOUD_APP_VERSION = '2.3.2';
+export const CLOUD_APP_VERSION = '2.3.3';
 
 const CLOUD_ID_KEY = 'strongman_cloud_sync_id_v1';
 const DEVICE_ID_KEY = 'strongman_cloud_device_id_v1';
@@ -55,6 +55,25 @@ export function setCloudSessionId(id) {
   if (!clean) return getCloudSessionId();
   localStorage.setItem(CLOUD_ID_KEY, clean);
   return clean;
+}
+
+export function extractCloudIdFromText(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    return url.searchParams.get('sync') || '';
+  } catch (_) {}
+  const match = text.match(/(?:sync=)?(cloud_[A-Za-z0-9_-]+)/);
+  return match ? match[1] : '';
+}
+
+export function adoptCloudSessionFromText(value) {
+  const id = extractCloudIdFromText(value);
+  if (!id) return '';
+  setCloudSessionId(id);
+  cloudIdFromUrl = true;
+  return id;
 }
 
 function getDeviceId() {

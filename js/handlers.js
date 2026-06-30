@@ -13,6 +13,8 @@ import * as FocusMode from './focusMode.js';
 // ── Sygnały i wibracje (NextGen) ──
 import { signalWarning, signalStart, VIB } from './stopwatch.js';
 
+let competitorSelectionOrder = [];
+
 /** Pomocnik: wibracja + dźwięk ostrzeżenia */
 function warnSignal() { try { signalWarning(); VIB.warning(); } catch(e){} }
 /** Pomocnik: wibracja + dźwięk sukcesu */
@@ -220,6 +222,7 @@ export async function loadAndRenderInitialData() {
     const competitorsFromDb = await CompetitorDB.getCompetitors();
     State.setAllDbCompetitors(competitorsFromDb);
     UI.renderCompetitorSelectionUI(competitorsFromDb);
+    resetCompetitorSelectionOrder();
 }
 
 export function handleThemeChange(e) {
@@ -254,9 +257,56 @@ export function handleFilterChange(e) {
     }
 }
 
-export function handleSelectionChange() {
-    const count = document.querySelectorAll('#competitorSelectionList input:checked').length;
-    UI.updateSelectionCounter(count);
+function syncCompetitorSelectionOrderUI() {
+    document.querySelectorAll('#competitorSelectionList .competitor-select-item').forEach(item => {
+        const input = item.querySelector('input[type="checkbox"]');
+        const badge = item.querySelector('.competitor-order-badge');
+        const name = input?.value || '';
+        const orderIndex = competitorSelectionOrder.indexOf(name);
+        const isSelected = orderIndex >= 0 && input?.checked;
+        item.classList.toggle('is-selected', isSelected);
+        item.dataset.order = isSelected ? String(orderIndex + 1) : '';
+        if (badge) badge.textContent = isSelected ? String(orderIndex + 1) : '';
+    });
+}
+
+export function resetCompetitorSelectionOrder() {
+    competitorSelectionOrder = [];
+    syncCompetitorSelectionOrderUI();
+    UI.updateSelectionCounter(0);
+}
+
+export function handleSelectionChange(e) {
+    const inputs = Array.from(document.querySelectorAll('#competitorSelectionList input[type="checkbox"]'));
+    const checkedNames = inputs.filter(input => input.checked).map(input => input.value);
+    const target = e?.target;
+
+    if (target?.matches?.('#competitorSelectionList input[type="checkbox"]')) {
+        if (target.checked) {
+            if (!competitorSelectionOrder.includes(target.value)) competitorSelectionOrder.push(target.value);
+        } else {
+            competitorSelectionOrder = competitorSelectionOrder.filter(name => name !== target.value);
+        }
+    }
+
+    competitorSelectionOrder = competitorSelectionOrder.filter(name => checkedNames.includes(name));
+    checkedNames.forEach(name => {
+        if (!competitorSelectionOrder.includes(name)) competitorSelectionOrder.push(name);
+    });
+
+    UI.updateSelectionCounter(checkedNames.length);
+    syncCompetitorSelectionOrderUI();
+}
+
+function getSelectedCompetitorsInSelectionOrder() {
+    const checkedNames = Array.from(document.querySelectorAll('#competitorSelectionList input[type="checkbox"]:checked'))
+        .map(input => input.value);
+    const checkedSet = new Set(checkedNames);
+    const ordered = competitorSelectionOrder.filter(name => checkedSet.has(name));
+    checkedNames.forEach(name => {
+        if (!ordered.includes(name)) ordered.push(name);
+    });
+    return ordered;
 }
 
 export async function handleDbFileImport(file) {
@@ -324,8 +374,7 @@ export async function handleImportState(file, refreshFullUICallback) {
 }
 
 export function handleStartCompetition(refreshFullUICallback) {
-    const selectedInputs = document.querySelectorAll('#competitorSelectionList input:checked');
-    const selectedCompetitors = Array.from(selectedInputs).map(input => input.value);
+    const selectedCompetitors = getSelectedCompetitorsInSelectionOrder();
     if (selectedCompetitors.length < 2) {
         UI.showNotification("Wybierz co najmniej dwóch zawodników.", "error");
         return false;

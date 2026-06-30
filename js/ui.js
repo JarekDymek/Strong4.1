@@ -340,6 +340,7 @@ export function renderCompetitorSelectionUI(allCompetitors) {
         const safePhoto = escapeHTML(c.photo || 'https://placehold.co/40x40/eee/333?text=?');
         return `
             <label class="competitor-select-item" data-categories="${safeCategories}">
+              <span class="competitor-order-badge" aria-hidden="true"></span>
               <input type="checkbox" value="${safeName}">
               <img src="${safePhoto}" class="competitor-photo-thumb">
               <span>${safeName}</span>

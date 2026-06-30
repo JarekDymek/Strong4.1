@@ -399,7 +399,7 @@ function openDrawView(competitorNames) {
         // Ekran 3 – rozgrywka
         UI.switchView('main');
         refreshFullUI();
-    });
+    }, { allowStartImmediately: true });
 }
 
 
@@ -1131,10 +1131,14 @@ function setupEventListeners() {
         Persistence.handleShowCheckpoints('checkpointListContainer_intro','checkpointList_intro');
     });
     safeAddListener('checkpointList_intro','click', (e) => {
-        Persistence.handleCheckpointListActions(e, refreshFullUI);
+        Persistence.handleCheckpointListActions(e, refreshFullUI, 'checkpointListContainer_intro','checkpointList_intro');
+    });
+    safeAddListener('checkpointList_intro','change', (e) => {
+        Persistence.handleCheckpointListActions(e, refreshFullUI, 'checkpointListContainer_intro','checkpointList_intro');
     });
     safeAddListener('showCheckpointsBtn','click', () => Persistence.handleShowCheckpoints());
     safeAddListener('checkpointList','click', (e) => Persistence.handleCheckpointListActions(e, refreshFullUI));
+    safeAddListener('checkpointList','change', (e) => Persistence.handleCheckpointListActions(e, refreshFullUI));
     safeAddListener('exportStateBtn_main','click', () => Persistence.exportStateToFile());
     safeAddListener('shareBackupBtn_main','click', () => Persistence.shareStateBackup('Backup_zawodow'));
     safeAddListener('importStateBtn_main','click', () => document.getElementById('importFile_main').click());
@@ -1159,6 +1163,18 @@ function setupEventListeners() {
     });
     safeAddListener('cloudPullBtn','click', async () => {
         let res = await CloudSync.pullStateFromCloud();
+        if (!res.ok && res.reason === 'empty') {
+            const currentCloudId = CloudSync.getCloudStatus().cloudId;
+            const pasted = await UI.showPrompt(
+                'Ta sesja chmury jest pusta.\n\nWklej link chmury albo kod sync z urzadzenia, na ktorym rozpoczeto zawody.\n\nKod tego urzadzenia: ' + currentCloudId,
+                ''
+            );
+            const adoptedId = CloudSync.adoptCloudSessionFromText(pasted);
+            if (adoptedId) {
+                UI.showNotification('Ustawiono sesje chmury: ' + adoptedId, 'info', 2200);
+                res = await CloudSync.pullStateFromCloud({ force: true });
+            }
+        }
         if (!res.ok && res.reason === 'local-newer') {
             const overwrite = await UI.showConfirmation(
                 'Na tym urzadzeniu sa nowsze lokalne zmiany niz ostatni stan w chmurze.\n\n' +
