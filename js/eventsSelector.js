@@ -76,6 +76,9 @@ function renderList() {
     badge.className = 'event-order-badge' + (isFinal ? ' final-badge' : '');
     badge.textContent = isSelected ? (order + 1) : '';
 
+    const meta = document.createElement('div');
+    meta.className = 'event-select-meta';
+
     const name = document.createElement('div');
     name.className = 'event-select-name';
     name.textContent = (ev.name || '') + (isFinal ? ' FINAL' : '');
@@ -83,6 +86,7 @@ function renderList() {
     const type = document.createElement('div');
     type.className = 'event-select-type';
     type.textContent = ev.type === 'low' ? 'Mniej=Lepiej' : 'Wiecej=Lepiej';
+    meta.append(name, type);
 
     const controls = document.createElement('div');
     controls.className = 'event-order-controls';
@@ -108,7 +112,7 @@ function renderList() {
     cb.checked = isSelected;
     cb.readOnly = true;
 
-    row.append(badge, name, type, controls, cb);
+    row.append(badge, meta, controls, cb);
     row.addEventListener('click', () => toggleEvent(ev.id));
     list.appendChild(row);
   });

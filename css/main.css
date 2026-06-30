@@ -464,7 +464,7 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
   align-items:center; justify-content:center;
   z-index:1000; padding:12px;
 }
-.modal-overlay.visible { display:flex; }
+.modal-overlay.visible { display:flex; z-index:9000; }
 .modal-box {
   background: var(--bg-card);
   border: 1.5px solid var(--border-hi);
@@ -1977,4 +1977,100 @@ body.trial-expired .event-meta-header {
 
 @media (max-width: 460px) {
   .app-topbar { grid-template-columns: 1fr; }
+}
+
+/* Stable mobile event selector layout: name never disappears */
+#eventsSelectionList {
+  max-height: min(64dvh, 620px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 2px 12px;
+}
+.event-select-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto 30px;
+  align-items: center;
+  gap: 10px;
+  min-height: 66px;
+  padding: 12px;
+}
+.event-select-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.event-select-name {
+  min-width: 0;
+  flex: initial;
+  font-size: 0.98rem;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.event-select-type {
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: normal;
+  margin: 0;
+}
+.event-select-row input[type="checkbox"] {
+  justify-self: end;
+  width: 24px;
+  height: 24px;
+}
+.event-order-controls:empty {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  #eventsSelectionList {
+    max-height: 58dvh;
+  }
+  .event-select-row {
+    grid-template-columns: 32px minmax(0, 1fr) 88px 28px;
+    min-height: 68px;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+  .event-select-row:not(.selected) {
+    grid-template-columns: 32px minmax(0, 1fr) 28px;
+  }
+  .event-select-row:not(.selected) .event-order-controls {
+    display: none;
+  }
+  .event-select-name {
+    font-size: 0.98rem;
+  }
+  .event-select-type {
+    flex-basis: auto;
+    margin-left: 0;
+    font-size: 0.76rem;
+  }
+  .event-order-controls {
+    justify-content: flex-end;
+    gap: 5px;
+  }
+  .event-order-move {
+    width: 40px !important;
+    min-width: 40px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* Final guard: collapsed panels must not leave visible but untouchable content */
+.collapsible-panel.is-collapsed > .collapsible-body {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  visibility: hidden;
+  overflow: hidden !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  pointer-events: none !important;
+}
+.collapsible-panel:not(.is-collapsed) > .collapsible-body {
+  visibility: visible;
 }

@@ -278,8 +278,8 @@ function _reset() {
   if (E.startBtn) { E.startBtn.style.display = 'none'; E.startBtn.innerHTML = '▶ START'; E.startBtn.classList.remove('stop-state'); }
   if (E.postStop) E.postStop.style.display = 'none';
   if (E.modeSel)  E.modeSel.style.display  = 'grid';
-  if (E.repsBtn)  E.repsBtn.classList.remove('selected');
-  if (E.lapsBtn)  E.lapsBtn.classList.remove('selected');
+  if (E.repsBtn)  { E.repsBtn.classList.remove('selected'); E.repsBtn.innerHTML = 'Powtorzenia'; }
+  if (E.lapsBtn)  { E.lapsBtn.classList.remove('selected'); E.lapsBtn.innerHTML = 'Miedzyczasy'; }
   if (E.root)     E.root.classList.remove('mode-selected','sw-running','sw-stopped');
   _removeTapHint();
   _removeEventIcon();
@@ -297,6 +297,12 @@ function _chooseMode(mode) {
   E.root.classList.add('mode-selected');
   E.repsBtn.classList.toggle('selected', mode === 'reps');
   E.lapsBtn.classList.toggle('selected', mode === 'laps');
+  E.repsBtn.innerHTML = mode === 'reps'
+    ? 'Powtorzenia<small>po starcie: +1</small>'
+    : 'Powtorzenia';
+  E.lapsBtn.innerHTML = mode === 'laps'
+    ? 'Miedzyczasy<small>po starcie: dodaj czas</small>'
+    : 'Miedzyczasy';
 
   E.startBtn.style.display = 'flex';
   E.startBtn.innerHTML = mode === 'reps'
@@ -322,9 +328,13 @@ function _start() {
   E.root.classList.add('sw-running');
   E.root.classList.remove('sw-stopped');
   E.startBtn.classList.add('stop-state');
-  E.startBtn.innerHTML = _mode === 'reps'
-    ? '<span style="display:block;font-size:0.4em;opacity:0.8;">DOTKNIJ EKRAN = POWT.</span>⏹ STOP'
-    : '⏹ STOP';
+  E.startBtn.innerHTML = 'STOP';
+  if (_mode === 'reps' && E.repsBtn) {
+    E.repsBtn.innerHTML = '<span style="display:block;font-size:1.25em;line-height:1;">+1</span><small>powtorzenie</small>';
+  }
+  if (_mode === 'laps' && E.lapsBtn) {
+    E.lapsBtn.innerHTML = '<span style="display:block;font-size:1.05em;line-height:1;">+ czas</span><small>miedzyczas</small>';
+  }
 
   _showTapHint();
 }
@@ -363,11 +373,10 @@ function _tap() {
     // Animacja licznika
     const rd = document.getElementById('fsRepNum');
     if (rd) { rd.classList.remove('rep-bounce'); void rd.offsetWidth; rd.classList.add('rep-bounce'); }
-    // Krótka informacja na przycisku STOP
-    const prev = E.startBtn.innerHTML;
-    E.startBtn.innerHTML =
+    // Licznik powtorzen zostaje na przycisku trybu, a duze pole sluzy do STOP.
+    E.repsBtn.innerHTML =
       `<span style="display:block;font-size:1.4em;font-weight:900;line-height:1;">${_reps}</span>` +
-      `<span style="display:block;font-size:0.4em;opacity:0.8;">POWTÓRZEŃ / DOTKNIJ</span>`;
+      `<small>powtorzen</small>`;
 
   } else if (_mode === 'laps') {
     const t = _elapsed;
@@ -376,8 +385,9 @@ function _tap() {
     const seg = t - prev;
     signalLap(); VIB.lap();
     notify(`🔔 Międzyczas ${_laps.length}: ${fmt(t)} (+${fmt(seg)})`, 'info', 2000);
-    E.startBtn.innerHTML = `<span style="font-size:0.8em;">+${fmt(seg)}</span>`;
-    setTimeout(() => { if (_running) E.startBtn.innerHTML = '⏹ STOP'; }, 1400);
+    E.lapsBtn.innerHTML =
+      `<span style="display:block;font-size:0.86em;line-height:1;">+${fmt(seg)}</span>` +
+      `<small>${_laps.length}. miedzyczas</small>`;
   }
 }
 
@@ -404,7 +414,9 @@ function _showTapHint() {
   const el = document.createElement('div');
   el.id = 'swTapHint';
   el.className = 'sw-tap-hint';
-  el.textContent = _mode === 'reps' ? '👆 Dotknij ekran = POWTÓRZENIE' : '👆 Dotknij ekran = MIĘDZYCZAS';
+  el.textContent = _mode === 'reps'
+    ? 'Duze pole: STOP | Powtorzenia: +1'
+    : 'Duze pole: STOP | Miedzyczasy: + czas';
   E.root.appendChild(el);
 }
 function _removeTapHint() {
@@ -518,9 +530,17 @@ export function setupStopwatchEventListeners() {
   if (_listenersBound) return;
   _listenersBound = true;
 
-  /* ─── Wybór trybu ─── */
-  E.repsBtn.addEventListener('click', () => _chooseMode('reps'));
-  E.lapsBtn.addEventListener('click', () => _chooseMode('laps'));
+  /* ─── Wybór trybu / licznik po starcie ─── */
+  E.repsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (_running && _mode === 'reps') _tap();
+    else _chooseMode('reps');
+  });
+  E.lapsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (_running && _mode === 'laps') _tap();
+    else _chooseMode('laps');
+  });
 
   /* ─── Przycisk START/STOP ─── */
   E.startBtn.addEventListener('click', e => {
@@ -538,7 +558,7 @@ export function setupStopwatchEventListeners() {
   /* ─── Modal laps — anuluj ─── */
   E.lapCancel?.addEventListener('click', () => E.lapModal.classList.remove('visible'));
 
-  /* ─── TAP na obszarze wyświetlacza (rep / lap) ───
+  /* ─── TAP na duzym polu stopera (START / STOP) ───
      Strategia: jeden handler 'pointerup' obsługuje zarówno touch jak i mouse.
      Sprawdzamy czy event nie pochodzi z przycisków sterujących.
   ─── */
@@ -549,14 +569,19 @@ export function setupStopwatchEventListeners() {
   }, { passive: true });
 
   E.display.addEventListener('pointerup', e => {
-    if (!_running) return;
-    const skip = [E.startBtn, E.photo, E.name, E.repsBtn, E.lapsBtn, E.resetBtn, E.saveBtn];
+    const skip = [E.startBtn, E.repsBtn, E.lapsBtn, E.resetBtn, E.saveBtn, E.exitBtn];
     if (skip.some(el => el && (el === e.target || el.contains(e.target)))) return;
     const dx = Math.abs((e.clientX || 0) - _tapStartX);
     const dy = Math.abs((e.clientY || 0) - _tapStartY);
     const dt = Date.now() - _tapStartTime;
     if (dx > 14 || dy > 14 || dt > 800) return;
-    _tap();
+    if (!_mode) {
+      signalWarning();
+      VIB.warning();
+      notify('Najpierw wybierz tryb stopera', 'error');
+      return;
+    }
+    _running ? _stop() : _start();
   }, { passive: true });
 
   /* ─── Fullscreen change — zamknij gdy opuszczono fullscreen ─── */

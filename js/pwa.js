@@ -1,7 +1,7 @@
 /*
 PWA helper: install prompts, persistent storage and visible update flow.
 */
-const CURRENT_APP_VERSION = '2.3.1';
+const CURRENT_APP_VERSION = '2.3.2';
 const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 let deferredPrompt = null;
 let updateRegistration = null;

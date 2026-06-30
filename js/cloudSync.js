@@ -5,7 +5,7 @@ import { FIREBASE_CONFIG } from './judge.js';
 import { getState, restoreState } from './state.js';
 import { isTrialMode } from './trialMode.js';
 
-export const CLOUD_APP_VERSION = '2.3.1';
+export const CLOUD_APP_VERSION = '2.3.2';
 
 const CLOUD_ID_KEY = 'strongman_cloud_sync_id_v1';
 const DEVICE_ID_KEY = 'strongman_cloud_device_id_v1';
