@@ -1,125 +1,168 @@
 // js/eventsSelector.js
-// Modal wyboru i ustalania kolejności konkurencji przed startem zawodów.
-// Ostatnia zaznaczona pozycja automatycznie otrzymuje zasady Konkurencji Finałowej
-// (kolejność startu: od najniższej sumy punktów do najwyższej — reverse=true).
+// Modal wyboru i ustalania kolejnosci konkurencji przed startem oraz po starcie zawodow.
 
 import { getEvents } from './eventsDb.js';
 
-// ---- stan modalu ----
-let allEvents = [];          // pełna lista z bazy
-let selectedIds = new Set(); // zaznaczone id
-let orderedIds  = [];        // kolejność (tablica id w kolejności zaznaczenia)
+let allEvents = [];
+let selectedIds = new Set();
+let orderedIds = [];
+let selectorMode = 'start';
 
-// ---- helpers DOM ----
-function getModal()   { return document.getElementById('selectEventsForCompetitionModal'); }
-function getList()    { return document.getElementById('eventsSelectionList'); }
+function getModal() { return document.getElementById('selectEventsForCompetitionModal'); }
+function getList() { return document.getElementById('eventsSelectionList'); }
 function getCounter() { return document.getElementById('eventsSelectedCount'); }
+function getConfirmBtn() { return document.getElementById('selectEventsConfirmBtn'); }
 
-// ---- render listy ----
+function normalizeExisting(existingEvents = []) {
+  const ids = [];
+  existingEvents.forEach(ev => {
+    const match = ev?.id ? allEvents.find(e => String(e.id) === String(ev.id)) : allEvents.find(e => (e.name || '') === (ev?.name || ''));
+    if (match && !ids.includes(match.id)) ids.push(match.id);
+  });
+  return ids;
+}
+
+function mergeExistingEvents(baseEvents, existingEvents = []) {
+  const merged = [...baseEvents];
+  existingEvents.forEach((ev, idx) => {
+    if (!ev) return;
+    const exists = merged.some(item => String(item.id) === String(ev.id) || (item.name || '') === (ev.name || ''));
+    if (!exists) {
+      merged.unshift({
+        id: ev.id || ('planned-' + idx + '-' + (ev.name || 'event')),
+        name: ev.name || ('Konkurencja ' + (idx + 1)),
+        type: ev.type || 'high',
+        isFinal: Boolean(ev.isFinal),
+      });
+    }
+  });
+  return merged;
+}
+function updateCounter() {
+  const counter = getCounter();
+  if (counter) counter.textContent = selectedIds.size;
+}
+
+function moveSelected(id, direction) {
+  const idx = orderedIds.indexOf(id);
+  if (idx < 0) return;
+  const next = idx + direction;
+  if (next < 0 || next >= orderedIds.length) return;
+  [orderedIds[idx], orderedIds[next]] = [orderedIds[next], orderedIds[idx]];
+  renderList();
+}
+
 function renderList() {
-    const list = getList();
-    if (!list) return;
-    list.innerHTML = '';
+  const list = getList();
+  if (!list) return;
+  list.innerHTML = '';
 
-    allEvents.forEach(ev => {
-        const isSelected = selectedIds.has(ev.id);
-        const order      = orderedIds.indexOf(ev.id);
-        const isFinal    = isSelected && order === orderedIds.length - 1 && orderedIds.length > 0;
+  const selectedRows = orderedIds
+    .map(id => allEvents.find(e => String(e.id) === String(id)))
+    .filter(Boolean);
+  const unselectedRows = allEvents.filter(ev => !selectedIds.has(ev.id));
+  const rows = [...selectedRows, ...unselectedRows];
 
-        const row = document.createElement('div');
-        row.className = 'event-select-row' +
-            (isSelected ? ' selected' : '') +
-            (isFinal    ? ' is-final'  : '');
-        row.dataset.id = ev.id;
+  rows.forEach(ev => {
+    const isSelected = selectedIds.has(ev.id);
+    const order = orderedIds.indexOf(ev.id);
+    const isFinal = isSelected && order === orderedIds.length - 1 && orderedIds.length > 0;
 
-        // numer kolejności
-        const badge = document.createElement('div');
-        badge.className = 'event-order-badge' + (isFinal ? ' final-badge' : '');
-        badge.textContent = isSelected ? (order + 1) : '';
+    const row = document.createElement('div');
+    row.className = 'event-select-row' + (isSelected ? ' selected' : '') + (isFinal ? ' is-final' : '');
+    row.dataset.id = ev.id;
 
-        // nazwa
-        const name = document.createElement('div');
-        name.className = 'event-select-name';
-        name.textContent = ev.name + (isFinal ? ' 🏆 FINAŁ' : '');
+    const badge = document.createElement('div');
+    badge.className = 'event-order-badge' + (isFinal ? ' final-badge' : '');
+    badge.textContent = isSelected ? (order + 1) : '';
 
-        // typ
-        const type = document.createElement('div');
-        type.className = 'event-select-type';
-        type.textContent = ev.type === 'low' ? '⬇ Mniej=Lepiej' : '⬆ Więcej=Lepiej';
+    const name = document.createElement('div');
+    name.className = 'event-select-name';
+    name.textContent = (ev.name || '') + (isFinal ? ' FINAL' : '');
 
-        // checkbox
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'event-select-checkbox';
-        cb.checked = isSelected;
-        cb.readOnly = true;
+    const type = document.createElement('div');
+    type.className = 'event-select-type';
+    type.textContent = ev.type === 'low' ? 'Mniej=Lepiej' : 'Wiecej=Lepiej';
 
-        row.appendChild(badge);
-        row.appendChild(name);
-        row.appendChild(type);
-        row.appendChild(cb);
+    const controls = document.createElement('div');
+    controls.className = 'event-order-controls';
+    if (isSelected) {
+      const up = document.createElement('button');
+      up.type = 'button';
+      up.className = 'event-order-move';
+      up.textContent = '\u2191';
+      up.disabled = order === 0;
+      up.addEventListener('click', event => { event.stopPropagation(); moveSelected(ev.id, -1); });
+      const down = document.createElement('button');
+      down.type = 'button';
+      down.className = 'event-order-move';
+      down.textContent = '\u2193';
+      down.disabled = order === orderedIds.length - 1;
+      down.addEventListener('click', event => { event.stopPropagation(); moveSelected(ev.id, 1); });
+      controls.append(up, down);
+    }
 
-        row.addEventListener('click', () => toggleEvent(ev.id));
-        list.appendChild(row);
-    });
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'event-select-checkbox';
+    cb.checked = isSelected;
+    cb.readOnly = true;
 
-    // aktualizuj licznik
-    const counter = getCounter();
-    if (counter) counter.textContent = selectedIds.size;
+    row.append(badge, name, type, controls, cb);
+    row.addEventListener('click', () => toggleEvent(ev.id));
+    list.appendChild(row);
+  });
+
+  updateCounter();
 }
 
 function toggleEvent(id) {
-    if (selectedIds.has(id)) {
-        selectedIds.delete(id);
-        orderedIds = orderedIds.filter(x => x !== id);
-    } else {
-        selectedIds.add(id);
-        orderedIds.push(id);
-    }
-    renderList();
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    orderedIds = orderedIds.filter(x => x !== id);
+  } else {
+    selectedIds.add(id);
+    orderedIds.push(id);
+  }
+  renderList();
 }
 
-// ---- API publiczne ----
-
-/** Otwiera modal z listą wszystkich konkurencji z bazy. */
-export async function openEventsSelector() {
-    allEvents    = await getEvents();
-    selectedIds  = new Set();
-    orderedIds   = [];
-    renderList();
-    const modal = getModal();
-    if (modal) modal.classList.add('visible');
+export async function openEventsSelector(existingEvents = [], mode = 'start') {
+  selectorMode = mode || 'start';
+  allEvents = mergeExistingEvents(await getEvents(), existingEvents);
+  const existingIds = normalizeExisting(existingEvents);
+  selectedIds = new Set(existingIds);
+  orderedIds = [...existingIds];
+  renderList();
+  const confirm = getConfirmBtn();
+  if (confirm) confirm.textContent = selectorMode === 'edit' ? 'Zapisz kolejnosc' : 'Zatwierdz i Startuj';
+  const modal = getModal();
+  if (modal) modal.classList.add('visible');
 }
 
-/** Zamyka modal. */
 export function closeEventsSelector() {
-    const modal = getModal();
-    if (modal) modal.classList.remove('visible');
+  const modal = getModal();
+  if (modal) modal.classList.remove('visible');
 }
 
-/**
- * Zwraca wybrane konkurencje w ustalonej kolejności.
- * Ostatnia otrzymuje flagę isFinal = true.
- * Format: [{ id, name, type, isFinal }, ...]
- */
+export function getSelectorMode() { return selectorMode; }
+
 export function getSelectedEventsOrdered() {
-    return orderedIds.map((id, idx) => {
-        const ev     = allEvents.find(e => e.id === id);
-        const isFinal = idx === orderedIds.length - 1;
-        return { ...ev, isFinal };
-    });
+  return orderedIds.map((id, idx) => {
+    const ev = allEvents.find(e => String(e.id) === String(id));
+    const isFinal = idx === orderedIds.length - 1;
+    return ev ? { ...ev, isFinal } : null;
+  }).filter(Boolean);
 }
 
-/** Zaznacz wszystkie w kolejności z bazy. */
 export function selectAll() {
-    selectedIds = new Set(allEvents.map(e => e.id));
-    orderedIds  = allEvents.map(e => e.id);
-    renderList();
+  selectedIds = new Set(allEvents.map(e => e.id));
+  orderedIds = allEvents.map(e => e.id);
+  renderList();
 }
 
-/** Odznacz wszystkie. */
 export function deselectAll() {
-    selectedIds.clear();
-    orderedIds = [];
-    renderList();
+  selectedIds.clear();
+  orderedIds = [];
+  renderList();
 }

@@ -102,6 +102,7 @@ export function triggerAutoSave() {
         try {
             const stateObj = getState();
             await idbPut(AUTO_SAVE_DB_KEY, stateObj);
+            import('./cloudSync.js').then(m => m.queueCloudPush('Autozapis')).catch(() => {});
             const indicator = document.getElementById('saveIndicator');
             if (indicator) {
               indicator.classList.add('visible');
@@ -140,6 +141,7 @@ export function triggerAutoSaveWithContext(label) {
                 auto: true
             };
             await CheckpointsDB.saveCheckpoint(record);
+            import('./cloudSync.js').then(m => m.queueCloudPush(label || 'Punkt kontrolny')).catch(() => {});
         } catch (e) {
             console.warn('triggerAutoSaveWithContext: checkpoint error', e);
         }
@@ -378,6 +380,7 @@ export async function saveCheckpoint(eventOrName) {
         };
         await CheckpointsDB.saveCheckpoint(record);
         await rememberLastBackup({ ...buildStateBackup(name, record.state), contextLabel: name });
+        import('./cloudSync.js').then(m => m.queueCloudPush(name || 'Reczny punkt kontrolny')).catch(() => {});
         showNotification('Punkt kontrolny zapisany.', 'success');
     } catch (err) {
         console.error('saveCheckpoint error', err);

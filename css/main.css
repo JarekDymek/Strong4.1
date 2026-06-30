@@ -1839,3 +1839,142 @@ body.dark .event-type-low { color: #93C5FD; }
   .competitor-list-actions:not(.event-actions) { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .competitor-list-actions:not(.event-actions) button { width: 100%; }
 }
+
+/* Field stability overrides: one main scroll, larger touch targets, cloud/trial controls */
+body.stopwatch-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.collapsible-panel {
+  overflow: visible;
+}
+.collapsible-body {
+  max-height: 12000px;
+  overflow: visible;
+  overscroll-behavior: auto;
+}
+
+
+.collapsible-panel.is-collapsed .collapsible-body {
+  overflow: hidden;
+}
+
+#competitorSelectionList {
+  max-height: none;
+  overflow: visible;
+}
+
+.app-topbar-action {
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  white-space: normal;
+}
+#manualUpdateBtn { border-color: rgba(37,99,235,0.45); color: #1D4ED8; }
+#cloudPushBtn { border-color: rgba(22,163,74,0.45); color: #166534; background: rgba(22,163,74,0.08); }
+#cloudPullBtn { border-color: rgba(8,145,178,0.45); color: #0E7490; background: rgba(8,145,178,0.08); }
+#cloudShareBtn { border-color: rgba(124,58,237,0.45); color: #6D28D9; background: rgba(124,58,237,0.08); }
+#shareTrialLinkBtn { border-color: rgba(245,158,0,0.55); color: #B45309; background: rgba(245,158,0,0.10); }
+
+.secondary-action-btn {
+  width: 100%;
+  min-height: 54px;
+  margin: 8px 0 12px;
+  padding: 13px 16px;
+  border-radius: var(--r-md);
+  border: 0;
+  background: linear-gradient(135deg,#0F766E,#0891B2);
+  color: #fff;
+  font-family: var(--font-body);
+  font-weight: 900;
+  box-shadow: var(--shadow-md);
+}
+
+.draw-btn-manual {
+  background: linear-gradient(135deg,#0F766E,#0891B2);
+}
+
+.event-select-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-order-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.event-order-move {
+  width: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#1E3A5F,#2D4A6A);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  box-shadow: none;
+}
+.event-order-move:disabled {
+  opacity: 0.28;
+}
+
+body.trial-mode .cloud-only,
+body.trial-mode .owner-only,
+body.trial-mode #judgeManagementPanel,
+body.trial-mode #createJudgeTokenBtn {
+  display: none !important;
+}
+body.trial-expired main,
+body.trial-expired .intro-container,
+body.trial-expired .panel,
+body.trial-expired .event-meta-header {
+  opacity: 0.45;
+}
+
+@media (max-width: 760px) {
+  .app-topbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .app-topbar .spacer { display: none; }
+  .theme-selector,
+  #autosaveToggleLabel,
+  .app-topbar-action,
+  #installPWAButton {
+    width: 100% !important;
+    min-height: 46px;
+    margin: 0 !important;
+    justify-content: center;
+  }
+  .collapsible-body,
+  #resultsPanel .collapsible-body,
+  #fullSummaryPanel .collapsible-body {
+    max-height: 12000px;
+    overflow: visible;
+  }
+  #competitorSelectionList {
+    grid-template-columns: 1fr;
+    max-height: none;
+    overflow: visible;
+  }
+  .event-select-row {
+    gap: 8px;
+    padding: 12px;
+  }
+  .event-select-type {
+    flex-basis: 100%;
+    margin-left: 42px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 460px) {
+  .app-topbar { grid-template-columns: 1fr; }
+}

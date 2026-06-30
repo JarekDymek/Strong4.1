@@ -1,13 +1,43 @@
-const CACHE_VERSION = 'v11-judge-ack-scope';  // BUG-08: bumped, stale service-worker.js removed
+const CACHE_VERSION = 'v12-field-sync-order-trial';
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
 
 const PRECACHE_URLS = [
-  '', 'index.html', 'judge.html', 'live.html', 'css/main.css',
-  'js/main.js', 'js/ui.js', 'js/state.js', 'js/history.js',
-  'js/focusMode.js', 'js/persistence.js', 'js/judge.js', 'js/handlers.js',
-  'images/icon-192.png', 'images/icon-512.png', 'images/logo-strong-man.png?v=4'
+  '',
+  'index.html',
+  'judge.html',
+  'live.html',
+  'manifest.json',
+  'favicon.ico',
+  'css/main.css',
+  'js/app-config.js',
+  'js/checkpointsDb.js',
+  'js/cloudSync.js',
+  'js/competition.js',
+  'js/db-dexie.js',
+  'js/domain/scoring.js',
+  'js/draw.js',
+  'js/eventsDb.js',
+  'js/eventsSelector.js',
+  'js/focusMode.js',
+  'js/handlers.js',
+  'js/history.js',
+  'js/initialData.js',
+  'js/install.js',
+  'js/judge.js',
+  'js/liveDisplay.js',
+  'js/main.js',
+  'js/persistence.js',
+  'js/pwa.js',
+  'js/state.js',
+  'js/stopwatch.js',
+  'js/trialMode.js',
+  'js/ui.js',
+  'js/utils.js',
+  'images/icon-192.png',
+  'images/icon-512.png',
+  'images/logo-strong-man.png?v=4'
 ].map(scopeUrl);
 
 self.addEventListener('install', event => {

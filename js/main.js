@@ -17,6 +17,8 @@ import * as EventsSelector from './eventsSelector.js';
 import * as Draw from './draw.js';
 import * as LiveDisplay from './liveDisplay.js';
 import * as Judge from './judge.js';
+import * as CloudSync from './cloudSync.js';
+import * as TrialMode from './trialMode.js';
 import { escapeHTML } from './utils.js';
 
 
@@ -641,6 +643,64 @@ function showJudgeLinkDialog(label, url, copied, modeLabel) {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
+
+async function copyOrShareUrl(url, title, text) {
+    if (navigator.share) {
+        try { await navigator.share({ title, text, url }); return true; }
+        catch (err) { if (err?.name === 'AbortError') return false; }
+    }
+    const ok = await copyToClipboard(url);
+    UI.showNotification(ok ? 'Link skopiowany.' : 'Nie udalo sie skopiowac linku.', ok ? 'success' : 'error');
+    return ok;
+}
+
+function applyTrialRestrictions() {
+    if (!TrialMode.isTrialMode()) return;
+    document.querySelectorAll('.cloud-only, .owner-only, #judgeManagementPanel, #createJudgeTokenBtn').forEach(el => {
+        if (!el) return;
+        el.style.display = 'none';
+    });
+    if (TrialMode.isTrialExpired()) {
+        UI.showNotification('Tryb testowy wygasl. Wczytaj pelna aplikacje wlasciciela.', 'error', 8000);
+        document.querySelectorAll('button, input, select, textarea').forEach(el => {
+            if (el.id === 'manualUpdateBtn' || el.id === 'installPWAButton') return;
+            el.disabled = true;
+        });
+    } else {
+        const left = TrialMode.getTrialDaysLeft();
+        UI.showNotification('Tryb testowy offline: pozostalo ' + left + ' dni. Chmura i sedzia pomocniczy sa wylaczone.', 'info', 5000);
+    }
+}
+
+function applyCurrentPlannedEvent() {
+    const planned = State.getPlannedEvents();
+    const current = planned[State.getEventNumber() - 1];
+    if (!current) return;
+    State.setEventTitle(current.name);
+    const titleEl = document.getElementById('eventTitle');
+    if (titleEl) titleEl.textContent = current.name;
+    State.setEventType(current.type);
+    UI.updateEventTypeButtons(current.type);
+    UI.updateEventTitle(State.getEventNumber(), current.name);
+}
+
+async function savePlanAfterEdit(chosen) {
+    State.setPlannedEvents(chosen);
+    applyCurrentPlannedEvent();
+    History.saveToUndoHistory(State.getState());
+    Persistence.triggerAutoSaveWithContext('Zmiana kolejnosci konkurencji');
+    CloudSync.queueCloudPush('Zmiana kolejnosci konkurencji');
+    refreshFullUI();
+    LiveDisplay.publishState();
+    Judge.refreshAllSessions(
+        State.getActiveCompetitors(),
+        State.getEventTitle(),
+        State.getEventType(),
+        State.getEventNumber()
+    );
+    UI.showNotification('Kolejnosc konkurencji zaktualizowana.', 'success');
+}
+
 function setupEventListeners() {
     Stopwatch.setupStopwatchEventListeners();
     FocusMode.setupFocusModeEventListeners();
@@ -678,7 +738,7 @@ function setupEventListeners() {
     // --- Intro Screen ---
     // Przycisk "Wybierz Konkurencje i Startuj" — otwiera modal wyboru kolejności
     safeAddListener('selectEventsForCompetitionBtn','click', async () => {
-        await EventsSelector.openEventsSelector();
+        await EventsSelector.openEventsSelector([], 'start');
     });
 
     // Przyciski wewnątrz modalu wyboru konkurencji
@@ -686,19 +746,21 @@ function setupEventListeners() {
     safeAddListener('eventsDeselectAllBtn', 'click', () => EventsSelector.deselectAll());
     safeAddListener('selectEventsCancelBtn','click', () => EventsSelector.closeEventsSelector());
 
-    safeAddListener('selectEventsConfirmBtn','click', () => {
+    safeAddListener('selectEventsConfirmBtn','click', async () => {
         const chosen = EventsSelector.getSelectedEventsOrdered();
         if (!chosen || chosen.length === 0) {
-            UI.showNotification('Wybierz co najmniej jedną konkurencję.', 'error');
+            UI.showNotification('Wybierz co najmniej jedna konkurencje.', 'error');
             return;
         }
-        // Zapisz listę wybranych konkurencji w stanie
-        State.setPlannedEvents(chosen);
         EventsSelector.closeEventsSelector();
 
-        // Teraz uruchom standardowy start zawodów
+        if (EventsSelector.getSelectorMode() === 'edit') {
+            await savePlanAfterEdit(chosen);
+            return;
+        }
+
+        State.setPlannedEvents(chosen);
         if (Handlers.handleStartCompetition()) {
-            // Ustaw pierwszą konkurencję
             const first = chosen[0];
             if (first) {
                 State.setEventTitle(first.name);
@@ -730,6 +792,14 @@ function setupEventListeners() {
 
     // --- Wyniki: panel edycji zakończonych konkurencji ---
     safeAddListener('showResultsBtn', 'click', UI.toggleHistoryPanel);
+    safeAddListener('editPlannedEventsBtn', 'click', async () => {
+        const planned = State.getPlannedEvents();
+        if (!planned || planned.length === 0) {
+            UI.showNotification('Najpierw wybierz konkurencje do zawodow.', 'error');
+            return;
+        }
+        await EventsSelector.openEventsSelector(planned, 'edit');
+    });
     safeAddListener('nextEventBtn','click', async () => {
         if (await Handlers.handleNextEvent()) {
             signalNext(); VIB.next();
@@ -1083,6 +1153,31 @@ function setupEventListeners() {
         await Handlers.handleImportState(file, refreshFullUI);
     });
 
+    safeAddListener('cloudPushBtn','click', async () => {
+        const res = await CloudSync.pushStateToCloud('Reczny zapis z urzadzenia');
+        UI.showNotification(res.ok ? 'Stan zapisany w chmurze.' : 'Chmura niedostepna: ' + (res.reason || 'offline'), res.ok ? 'success' : 'error', 3500);
+    });
+    safeAddListener('cloudPullBtn','click', async () => {
+        const res = await CloudSync.pullStateFromCloud();
+        if (res.ok) {
+            refreshFullUI();
+            Persistence.triggerAutoSaveWithContext('Wczytano stan z chmury');
+            UI.showNotification('Wczytano najnowszy stan z chmury.', 'success');
+        } else {
+            UI.showNotification('Nie wczytano z chmury: ' + (res.reason || 'brak danych'), 'error', 3500);
+        }
+    });
+    safeAddListener('cloudShareBtn','click', async () => {
+        const url = CloudSync.getCloudShareUrl();
+        await copyOrShareUrl(url, 'Strong Man - sesja w chmurze', 'Otworz ten link na drugim zaufanym urzadzeniu, aby wczytac ta sama sesje zawodow.');
+    });
+    safeAddListener('shareTrialLinkBtn','click', async () => {
+        const url = TrialMode.createTrialLink();
+        await copyOrShareUrl(url, 'Strong Man - wersja testowa 3 dni', 'Link testowy dziala offline przez 3 dni bez chmury i sedziego pomocniczego.');
+    });
+    window.addEventListener('strongman:cloud-pushed', () => UI.showNotification('Chmurowy punkt kontrolny zapisany.', 'success', 1600));
+    window.addEventListener('strongman:cloud-error', (e) => console.warn('Cloud sync:', e.detail?.message));
+
 }
 
 /**
@@ -1090,6 +1185,8 @@ function setupEventListeners() {
  */
 async function initializeApp() {
     try {
+        TrialMode.initTrialMode();
+        CloudSync.applyCloudIdFromUrl();
         UI.initUI();
         setupCollapsiblePanels();
         // DODANA LINIA - Inicjalizujemy nasz nowy prompter, aby był gotowy do użycia
@@ -1118,6 +1215,7 @@ async function initializeApp() {
         await CompetitorDB.seedCompetitorsDatabaseIfNeeded();
         
         setupEventListeners();
+        applyTrialRestrictions();
         // --- Autosave toggle wiring ---
         try {
             const backupEmailIntro = document.getElementById('backupEmailInput_intro');
@@ -1153,8 +1251,10 @@ async function initializeApp() {
 
 
         const savedTheme = Persistence.loadTheme();
-        document.body.className = savedTheme;
+        document.body.classList.remove('light', 'dark', 'contrast');
+        if (savedTheme) document.body.classList.add(savedTheme);
         UI.DOMElements.themeSelector.value = savedTheme;
+        applyTrialRestrictions();
 
         const loadedFromAutoSave = await Persistence.loadStateFromAutoSave();
         if (loadedFromAutoSave) {
@@ -1163,6 +1263,18 @@ async function initializeApp() {
             await Handlers.loadAndRenderInitialData();
             State.setEventName(UI.DOMElements.eventNameInput.value);
         }
+
+        if (CloudSync.wasCloudIdProvidedInUrl()) {
+            const cloudPull = await CloudSync.pullStateFromCloud();
+            if (cloudPull.ok) {
+                refreshFullUI();
+                Persistence.triggerAutoSaveWithContext('Wczytano stan z chmury');
+                UI.showNotification('Wczytano stan zawodow z chmury.', 'success', 3000);
+            } else if (cloudPull.reason !== 'trial') {
+                UI.showNotification('Nie udalo sie wczytac stanu z chmury: ' + (cloudPull.reason || 'brak danych'), 'error', 4500);
+            }
+        }
+
         History.clearHistory();
         History.saveToUndoHistory(State.getState());
         LiveDisplay.init();

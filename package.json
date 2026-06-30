@@ -1,6 +1,6 @@
 {
   "name": "strong22",
-  "version": "2.2.4",
+  "version": "2.3.0",
   "description": "Strongman competition management app - static vanilla JavaScript build",
   "type": "module",
   "scripts": {

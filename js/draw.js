@@ -266,12 +266,76 @@ function escHtml(s) {
 /* ─────────────────────────────────────────────
    EVENT LISTENERS (wołane z main.js)
    ───────────────────────────────────────────── */
+
+function normalizeName(name) {
+    return String(name || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pl-PL');
+}
+
+function openManualOrderModal() {
+    const modal = el('manualOrderModal');
+    const textarea = el('manualOrderTextarea');
+    const err = el('manualOrderError');
+    if (!modal || !textarea) return;
+    textarea.value = competitors.join('\n');
+    if (err) { err.style.display = 'none'; err.textContent = ''; }
+    modal.classList.add('visible');
+    setTimeout(() => textarea.focus(), 80);
+}
+
+function closeManualOrderModal() {
+    el('manualOrderModal')?.classList.remove('visible');
+}
+
+function applyManualOrder() {
+    const textarea = el('manualOrderTextarea');
+    const err = el('manualOrderError');
+    if (!textarea) return;
+    const lines = textarea.value.split(/\n+/).map(v => v.trim()).filter(Boolean);
+    const source = new Map(competitors.map(name => [normalizeName(name), name]));
+    const used = new Set();
+    const ordered = [];
+
+    for (const line of lines) {
+        const key = normalizeName(line.replace(/^\d+[.)-]?\s*/, ''));
+        const name = source.get(key);
+        if (!name) {
+            if (err) { err.textContent = 'Nie znaleziono zawodnika: ' + line; err.style.display = 'block'; }
+            return;
+        }
+        if (used.has(key)) {
+            if (err) { err.textContent = 'Zawodnik wpisany dwa razy: ' + name; err.style.display = 'block'; }
+            return;
+        }
+        used.add(key);
+        ordered.push(name);
+    }
+
+    if (ordered.length !== competitors.length) {
+        const missing = competitors.filter(name => !used.has(normalizeName(name))).join(', ');
+        if (err) { err.textContent = 'Brakuje zawodnikow: ' + missing; err.style.display = 'block'; }
+        return;
+    }
+
+    competitors = ordered;
+    drawWheel(competitors, currentAngle);
+    renderOrder(competitors);
+    const startBtn = el('drawStartBtn');
+    const spinBtn = el('drawSpinBtn');
+    if (startBtn) startBtn.disabled = false;
+    if (spinBtn) spinBtn.textContent = 'Losuj ponownie';
+    closeManualOrderModal();
+}
+
 export function setupDrawListeners() {
     const spinBtn  = el('drawSpinBtn');
     const startBtn = el('drawStartBtn');
     const backBtn  = el('drawBackBtn');
+    const manualBtn = el('drawManualOrderBtn');
 
     if (spinBtn)  spinBtn.addEventListener('click',  spin);
+    if (manualBtn) manualBtn.addEventListener('click', openManualOrderModal);
+    el('manualOrderApplyBtn')?.addEventListener('click', applyManualOrder);
+    el('manualOrderCancelBtn')?.addEventListener('click', closeManualOrderModal);
     if (startBtn) startBtn.addEventListener('click', () => {
         if (onStartCb) onStartCb(competitors);
         closeDrawView();

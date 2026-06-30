@@ -202,6 +202,10 @@ let _laps     = [];   // ms timestamps
 let _onSave   = null; // callback(name, result, eventType)
 let _compName = '';
 let _eventName = '';
+let _listenersBound = false;
+let _tapStartX = 0;
+let _tapStartY = 0;
+let _tapStartTime = 0;
 
 /* ═══════════════════════════════════════════════════════
    INIT — zbierz referencje DOM raz, używaj zawsze
@@ -474,6 +478,8 @@ function _exit() {
   cancelAnimationFrame(_rafId);
   _running = false;
   if (E.root) E.root.classList.remove('visible');
+  E.lapModal?.classList.remove('visible');
+  document.body.classList.remove('stopwatch-open');
   _removeTapHint();
   _removeEventIcon();
 }
@@ -503,15 +509,14 @@ export function enterStopwatch(competitorName, saveCallback, eventName = '') {
   unlockAudio();
 
   if (E.root) E.root.classList.add('visible');
-  // Fullscreen tylko na urządzeniach które to wspierają (nie iOS PWA)
-  if (document.fullscreenEnabled && !navigator.standalone) {
-    E.root.requestFullscreen?.().catch(() => {});
-  }
+  document.body.classList.add('stopwatch-open');
 }
 
 /** Rejestruje wszystkie listenery. Wywołuj PO initStopwatch(). */
 export function setupStopwatchEventListeners() {
-  if (!E.root) { console.warn('SW: brak root — initStopwatch() nie został wywołany'); return; }
+  if (!E.root) { console.warn('SW: brak root - initStopwatch() nie zostal wywolany'); return; }
+  if (_listenersBound) return;
+  _listenersBound = true;
 
   /* ─── Wybór trybu ─── */
   E.repsBtn.addEventListener('click', () => _chooseMode('reps'));
@@ -537,15 +542,22 @@ export function setupStopwatchEventListeners() {
      Strategia: jeden handler 'pointerup' obsługuje zarówno touch jak i mouse.
      Sprawdzamy czy event nie pochodzi z przycisków sterujących.
   ─── */
+  E.display.addEventListener('pointerdown', e => {
+    _tapStartX = e.clientX || 0;
+    _tapStartY = e.clientY || 0;
+    _tapStartTime = Date.now();
+  }, { passive: true });
+
   E.display.addEventListener('pointerup', e => {
     if (!_running) return;
-    // Ignoruj jeśli cel to przycisk lub jego dziecko
     const skip = [E.startBtn, E.photo, E.name, E.repsBtn, E.lapsBtn, E.resetBtn, E.saveBtn];
     if (skip.some(el => el && (el === e.target || el.contains(e.target)))) return;
-    // Ignoruj jeśli duże przesunięcie (scroll na mobile)
-    if (e.pointerType === 'touch' && Math.hypot(e.movementX, e.movementY) > 12) return;
+    const dx = Math.abs((e.clientX || 0) - _tapStartX);
+    const dy = Math.abs((e.clientY || 0) - _tapStartY);
+    const dt = Date.now() - _tapStartTime;
+    if (dx > 14 || dy > 14 || dt > 800) return;
     _tap();
-  });
+  }, { passive: true });
 
   /* ─── Fullscreen change — zamknij gdy opuszczono fullscreen ─── */
   document.addEventListener('fullscreenchange', () => {

@@ -119,6 +119,34 @@ async function registerServiceWorker() {
   }
 }
 
+
+async function forcePWAUpdate() {
+  const btn = document.getElementById('manualUpdateBtn');
+  const oldText = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Sprawdzam...'; }
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = updateRegistration || await navigator.serviceWorker.getRegistration('./');
+      if (registration) {
+        updateRegistration = registration;
+        await registration.update().catch(() => {});
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          return;
+        }
+      }
+    }
+    const url = new URL(location.href);
+    url.searchParams.set('v', String(Date.now()));
+    location.replace(url.href);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = oldText || 'Aktualizuj';
+    }
+  }
+}
+
 export function initPWA() {
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist()
@@ -151,6 +179,9 @@ export function initPWA() {
     deferredPrompt = null;
     return choice;
   };
+
+  window.forcePWAUpdate = forcePWAUpdate;
+  document.getElementById('manualUpdateBtn')?.addEventListener('click', forcePWAUpdate);
 
   blockPullToRefresh();
   registerServiceWorker();

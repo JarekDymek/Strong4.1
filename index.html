@@ -326,6 +326,22 @@
 </div>
 
 <!-- Wybór wyniku ze stopera (międzyczasy) -->
+<!-- Reczne wpisanie kolejnosci startowej -->
+<div id="manualOrderModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>Wpisz kolejnosc startowa</h3>
+    <p style="font-size:0.88rem;color:#64748B;line-height:1.5;margin-bottom:10px;">
+      Wpisz zawodnikow w kolejnosci startu, po jednym wierszu. Nazwy musza odpowiadac wybranym zawodnikom.
+    </p>
+    <textarea id="manualOrderTextarea" rows="10" style="width:100%;min-height:220px;resize:vertical;font-family:monospace;"></textarea>
+    <div id="manualOrderError" style="display:none;color:#DC2626;font-weight:800;margin:8px 0;font-size:0.9rem;"></div>
+    <div class="modal-buttons">
+      <button id="manualOrderApplyBtn">Zastosuj kolejnosc</button>
+      <button id="manualOrderCancelBtn" style="background:linear-gradient(135deg,#64748B,#475569);">Anuluj</button>
+    </div>
+  </div>
+</div>
+
 <div id="fsLapsModal" class="modal-overlay" role="dialog" aria-modal="true">
   <div class="modal-box">
     <h3>⏱️ Wybierz wynik do zapisu</h3>
@@ -404,6 +420,11 @@
     <input type="checkbox" id="autosaveToggle" checked> Autozapis
   </label>
   <div class="spacer"></div>
+  <button id="manualUpdateBtn" class="logo-btn app-topbar-action" type="button">Aktualizuj</button>
+  <button id="cloudPushBtn" class="logo-btn app-topbar-action cloud-only" type="button">Chmura: zapisz</button>
+  <button id="cloudPullBtn" class="logo-btn app-topbar-action cloud-only" type="button">Odswiez z chmury</button>
+  <button id="cloudShareBtn" class="logo-btn app-topbar-action cloud-only" type="button">Link chmury</button>
+  <button id="shareTrialLinkBtn" class="logo-btn app-topbar-action owner-only" type="button">Link testowy 3 dni</button>
   <button id="installPWAButton" class="logo-btn" style="display:none;width:auto;margin:0;padding:8px 16px;font-size:0.85rem;">
     📲 Zainstaluj
   </button>
@@ -737,6 +758,8 @@
   </section>
   <div id="timelineHint" class="timeline-hint workflow-status" aria-live="polite"></div>
 
+  <button id="editPlannedEventsBtn" class="secondary-action-btn" type="button">Edytuj kolejnosc konkurencji</button>
+
   <!-- AKCJE -->
   <div class="actions-grid workflow-actions">
     <button id="nextEventBtn">▶ Następna Konkurencja</button>
@@ -839,6 +862,7 @@
     </div>
     <div id="drawView-actions">
       <button id="drawBackBtn"  class="draw-btn draw-btn-back">← Wróć</button>
+      <button id="drawManualOrderBtn" class="draw-btn draw-btn-manual">Wpisz kolejnosc</button>
       <button id="drawSpinBtn"  class="draw-btn draw-btn-spin">🎰 Losuj kolejność</button>
       <button id="drawStartBtn" class="draw-btn draw-btn-start" disabled>▶ START ZAWODÓW</button>
     </div>
