@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v12-field-sync-order-trial';
+const CACHE_VERSION = 'v13-sync-conflict-version';
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();
@@ -9,6 +9,7 @@ const PRECACHE_URLS = [
   'judge.html',
   'live.html',
   'manifest.json',
+  'version.json',
   'favicon.ico',
   'css/main.css',
   'js/app-config.js',

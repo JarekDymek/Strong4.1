@@ -1,11 +1,29 @@
 /*
 PWA helper: install prompts, persistent storage and visible update flow.
 */
+const CURRENT_APP_VERSION = '2.3.1';
 const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 let deferredPrompt = null;
 let updateRegistration = null;
 let refreshing = false;
 
+function compareVersions(a, b) {
+  const pa = String(a || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function setUpdateButtonVisible(visible, label = 'Aktualizuj') {
+  const btn = document.getElementById('manualUpdateBtn');
+  if (!btn) return;
+  btn.style.display = visible ? 'inline-flex' : 'none';
+  btn.textContent = label;
+}
 
 function findScrollableParent(node) {
   let el = node instanceof Element ? node : node?.parentElement;
@@ -53,21 +71,16 @@ function ensureUpdateBanner() {
   banner.setAttribute('aria-live', 'polite');
   banner.innerHTML = `
     <div class="pwa-update-text">
-      <strong>Nowa wersja aplikacji jest dostępna</strong>
-      <span>Dotknij, aby wczytać aktualizację z GitHub.</span>
+      <strong>Nowa wersja aplikacji jest dostepna</strong>
+      <span>Dotknij, aby wczytac aktualizacje z GitHub.</span>
     </div>
-    <button id="pwaUpdateReloadBtn" class="pwa-update-btn" type="button">Wgraj nową wersję</button>
+    <button id="pwaUpdateReloadBtn" class="pwa-update-btn" type="button">Wgraj nowa wersje</button>
     <button id="pwaUpdateDismissBtn" class="pwa-update-dismiss" type="button" aria-label="Ukryj komunikat">Zamknij</button>
   `;
   document.body.appendChild(banner);
 
   banner.querySelector('#pwaUpdateReloadBtn')?.addEventListener('click', () => {
-    const waiting = updateRegistration?.waiting;
-    if (waiting) {
-      waiting.postMessage({ type: 'SKIP_WAITING' });
-    } else if (updateRegistration?.update) {
-      updateRegistration.update();
-    }
+    forcePWAUpdate();
   });
   banner.querySelector('#pwaUpdateDismissBtn')?.addEventListener('click', () => {
     banner.classList.remove('show');
@@ -75,9 +88,23 @@ function ensureUpdateBanner() {
   return banner;
 }
 
-function showUpdateBanner(registration) {
-  updateRegistration = registration;
+function showUpdateBanner(registration = null) {
+  if (registration) updateRegistration = registration;
+  setUpdateButtonVisible(true, 'Aktualizuj');
   ensureUpdateBanner().classList.add('show');
+}
+
+async function checkRemoteVersion() {
+  try {
+    const response = await fetch('version.json?ts=' + Date.now(), { cache: 'no-store' });
+    if (!response.ok) return;
+    const remote = await response.json();
+    if (compareVersions(remote.version, CURRENT_APP_VERSION) > 0) {
+      showUpdateBanner(updateRegistration);
+    }
+  } catch (err) {
+    console.debug('Version check skipped:', err?.message || err);
+  }
 }
 
 function watchRegistration(registration) {
@@ -97,7 +124,10 @@ function watchRegistration(registration) {
     });
   });
 
-  setInterval(() => registration.update().catch(() => {}), 10 * 60 * 1000);
+  setInterval(() => {
+    registration.update().catch(() => {});
+    checkRemoteVersion();
+  }, 10 * 60 * 1000);
 }
 
 async function registerServiceWorker() {
@@ -118,7 +148,6 @@ async function registerServiceWorker() {
     console.log('SW failed:', error);
   }
 }
-
 
 async function forcePWAUpdate() {
   const btn = document.getElementById('manualUpdateBtn');
@@ -148,6 +177,8 @@ async function forcePWAUpdate() {
 }
 
 export function initPWA() {
+  setUpdateButtonVisible(false);
+
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist()
       .then(p => console.log('Storage.persisted:', p))
@@ -184,7 +215,7 @@ export function initPWA() {
   document.getElementById('manualUpdateBtn')?.addEventListener('click', forcePWAUpdate);
 
   blockPullToRefresh();
-  registerServiceWorker();
+  registerServiceWorker().finally(checkRemoteVersion);
 }
 
 if (document.readyState === 'loading') {

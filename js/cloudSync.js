@@ -5,11 +5,15 @@ import { FIREBASE_CONFIG } from './judge.js';
 import { getState, restoreState } from './state.js';
 import { isTrialMode } from './trialMode.js';
 
+export const CLOUD_APP_VERSION = '2.3.1';
+
 const CLOUD_ID_KEY = 'strongman_cloud_sync_id_v1';
 const DEVICE_ID_KEY = 'strongman_cloud_device_id_v1';
 const LAST_PULL_KEY = 'strongman_cloud_last_pull_ts_v1';
 const LAST_PUSH_KEY = 'strongman_cloud_last_push_ts_v1';
+const LAST_LOCAL_DIRTY_KEY = 'strongman_cloud_last_local_dirty_ts_v1';
 const PUSH_DELAY = 1800;
+const CONFLICT_GRACE_MS = 2500;
 
 let firebaseDb = null;
 let fbFn = null;
@@ -23,6 +27,18 @@ function configured() {
 
 function randomId(prefix) {
   return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function numberFromStorage(key) {
+  return Number(localStorage.getItem(key) || 0);
+}
+
+function setNumberStorage(key, value) {
+  try { localStorage.setItem(key, String(value)); } catch (_) {}
+}
+
+function markLocalDirty(ts = Date.now()) {
+  setNumberStorage(LAST_LOCAL_DIRTY_KEY, ts);
 }
 
 export function getCloudSessionId() {
@@ -88,22 +104,24 @@ export async function pushStateToCloud(label = 'Autozapis') {
   if (!ready) return { ok: false, reason: lastError || 'offline' };
   const id = getCloudSessionId();
   const updatedAt = Date.now();
+  markLocalDirty(updatedAt);
   const payload = {
     cloudId: id,
     deviceId: getDeviceId(),
     label,
     updatedAt,
-    appVersion: '2.3.0',
+    appVersion: CLOUD_APP_VERSION,
     state: compactStateForCloud(getState()),
   };
   await fbFn.set(fbFn.ref(firebaseDb, 'cloudStates/' + id + '/latest'), payload);
-  localStorage.setItem(LAST_PUSH_KEY, String(updatedAt));
+  setNumberStorage(LAST_PUSH_KEY, updatedAt);
   window.dispatchEvent(new CustomEvent('strongman:cloud-pushed', { detail: payload }));
   return { ok: true, payload };
 }
 
 export function queueCloudPush(label = 'Autozapis') {
   if (isTrialMode()) return;
+  markLocalDirty();
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushStateToCloud(label).catch(err => {
@@ -113,7 +131,16 @@ export function queueCloudPush(label = 'Autozapis') {
   }, PUSH_DELAY);
 }
 
-export async function pullStateFromCloud() {
+function shouldBlockPull(payload, options = {}) {
+  if (options.force) return false;
+  const remoteTs = Number(payload?.updatedAt || 0);
+  const localDirtyTs = numberFromStorage(LAST_LOCAL_DIRTY_KEY);
+  const lastPushTs = numberFromStorage(LAST_PUSH_KEY);
+  const localHasUnpushedOrNewerWork = localDirtyTs > Math.max(lastPushTs, remoteTs) + CONFLICT_GRACE_MS;
+  return localHasUnpushedOrNewerWork;
+}
+
+export async function pullStateFromCloud(options = {}) {
   if (isTrialMode()) return { ok: false, reason: 'trial' };
   const ready = await initFirebase();
   if (!ready) return { ok: false, reason: lastError || 'offline' };
@@ -122,8 +149,13 @@ export async function pullStateFromCloud() {
   if (!snap.exists()) return { ok: false, reason: 'empty' };
   const payload = snap.val();
   if (!payload?.state) return { ok: false, reason: 'invalid' };
+  if (shouldBlockPull(payload, options)) {
+    return { ok: false, reason: 'local-newer', payload };
+  }
   restoreState(payload.state);
-  localStorage.setItem(LAST_PULL_KEY, String(payload.updatedAt || Date.now()));
+  const pulledAt = Number(payload.updatedAt || Date.now());
+  setNumberStorage(LAST_PULL_KEY, pulledAt);
+  setNumberStorage(LAST_LOCAL_DIRTY_KEY, pulledAt);
   window.dispatchEvent(new CustomEvent('strongman:cloud-pulled', { detail: payload }));
   return { ok: true, payload };
 }
@@ -142,8 +174,10 @@ export function getCloudShareUrl() {
 export function getCloudStatus() {
   return {
     cloudId: getCloudSessionId(),
-    lastPull: Number(localStorage.getItem(LAST_PULL_KEY) || 0),
-    lastPush: Number(localStorage.getItem(LAST_PUSH_KEY) || 0),
+    deviceId: getDeviceId(),
+    lastPull: numberFromStorage(LAST_PULL_KEY),
+    lastPush: numberFromStorage(LAST_PUSH_KEY),
+    lastLocalDirty: numberFromStorage(LAST_LOCAL_DIRTY_KEY),
     lastError,
     disabled: isTrialMode(),
   };

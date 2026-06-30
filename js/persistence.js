@@ -478,7 +478,18 @@ export async function handleCheckpointListActions(e, refreshFullUI, containerId,
 
 export async function resetApplication(refreshCallback) {
     try {
-        if (!await showConfirmation('Czy na pewno zresetować aplikację? Wszystkie dane bieżących zawodów zostaną utracone.')) return;
+        const current = getState();
+        const hasCompetitionData = (current.competitors?.length || 0) > 0 ||
+            (current.eventHistory?.length || 0) > 0 ||
+            Object.keys(current.draftResults || {}).length > 0;
+        if (!await showConfirmation('Czy na pewno zresetowac aplikacje? Wszystkie dane biezacych zawodow zostana utracone.')) return;
+        if (hasCompetitionData) {
+            const typed = await showPrompt('To sa aktywne dane zawodow. Aby zresetowac, wpisz RESET:', '');
+            if (String(typed || '').trim().toUpperCase() !== 'RESET') {
+                showNotification('Reset anulowany - dane zawodow zostaly zachowane.', 'info', 3500);
+                return;
+            }
+        }
         await clearAutoSave();
         resetState();
         clearHistory();

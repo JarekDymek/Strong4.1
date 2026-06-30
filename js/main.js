@@ -1158,7 +1158,18 @@ function setupEventListeners() {
         UI.showNotification(res.ok ? 'Stan zapisany w chmurze.' : 'Chmura niedostepna: ' + (res.reason || 'offline'), res.ok ? 'success' : 'error', 3500);
     });
     safeAddListener('cloudPullBtn','click', async () => {
-        const res = await CloudSync.pullStateFromCloud();
+        let res = await CloudSync.pullStateFromCloud();
+        if (!res.ok && res.reason === 'local-newer') {
+            const overwrite = await UI.showConfirmation(
+                'Na tym urzadzeniu sa nowsze lokalne zmiany niz ostatni stan w chmurze.\n\n' +
+                'Czy mimo to wczytac stan z chmury i nadpisac lokalny ekran?'
+            );
+            if (!overwrite) {
+                UI.showNotification('Wczytywanie z chmury anulowane - lokalny stan zostal zachowany.', 'info', 3500);
+                return;
+            }
+            res = await CloudSync.pullStateFromCloud({ force: true });
+        }
         if (res.ok) {
             refreshFullUI();
             Persistence.triggerAutoSaveWithContext('Wczytano stan z chmury');
@@ -1270,6 +1281,8 @@ async function initializeApp() {
                 refreshFullUI();
                 Persistence.triggerAutoSaveWithContext('Wczytano stan z chmury');
                 UI.showNotification('Wczytano stan zawodow z chmury.', 'success', 3000);
+            } else if (cloudPull.reason === 'local-newer') {
+                UI.showNotification('Nie wczytano chmury, bo lokalny stan jest nowszy. Uzyj przycisku Odswiez z chmury, aby wymusic.', 'info', 5500);
             } else if (cloudPull.reason !== 'trial') {
                 UI.showNotification('Nie udalo sie wczytac stanu z chmury: ' + (cloudPull.reason || 'brak danych'), 'error', 4500);
             }
