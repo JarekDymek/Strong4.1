@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v16-outdoor-touch-guards';
+const CACHE_VERSION = 'v17-ordered-competitor-start';
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();

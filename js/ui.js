@@ -333,13 +333,13 @@ export function renderCompetitorSelectionUI(allCompetitors) {
         DOMElements.competitorSelectionList.innerHTML = `<p style="text-align:center; padding: 20px;">Baza danych jest pusta. Kliknij "Zarządzaj Zawodnikami", aby dodać pierwszych uczestników.</p>`;
         return;
     }
-    DOMElements.competitorSelectionList.innerHTML = allCompetitors.map(c => {
+    DOMElements.competitorSelectionList.innerHTML = allCompetitors.map((c, index) => {
         const categoriesStr = (c.categories && c.categories.length) ? c.categories.join(',') : '';
         const safeName = escapeHTML(c.name);
         const safeCategories = escapeHTML(categoriesStr);
         const safePhoto = escapeHTML(c.photo || 'https://placehold.co/40x40/eee/333?text=?');
         return `
-            <label class="competitor-select-item" data-categories="${safeCategories}">
+            <label class="competitor-select-item" data-categories="${safeCategories}" data-db-order="${index}">
               <span class="competitor-order-badge" aria-hidden="true"></span>
               <input type="checkbox" value="${safeName}">
               <img src="${safePhoto}" class="competitor-photo-thumb">

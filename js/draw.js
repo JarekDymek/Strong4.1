@@ -9,6 +9,8 @@ let onStartCb    = null; // callback uruchamiany po kliknięciu Start
 /* ─── Helpers DOM ─── */
 const el  = id => document.getElementById(id);
 const $ = sel => document.querySelector(sel);
+let allowStartWithoutDraw = false;
+let drawWasUsed = false;
 
 /* ─────────────────────────────────────────────
    DRAW VIEW — renderowanie ekranu losowania
@@ -19,6 +21,8 @@ export function openDrawView(competitorList, onStart, options = {}) {
     currentAngle = 0;
     spinning     = false;
     const allowStartImmediately = options.allowStartImmediately === true;
+    allowStartWithoutDraw = allowStartImmediately;
+    drawWasUsed = false;
 
     const view = el('drawView');
     if (!view) return;
@@ -42,8 +46,7 @@ export function openDrawView(competitorList, onStart, options = {}) {
     el('drawStartBtn').dataset.actionBusy = '0';
     el('drawStartBtn').removeAttribute('aria-busy');
     el('drawStartBtn').classList.remove('action-busy');
-    el('drawSpinBtn').textContent = allowStartImmediately ? '🎰 Losuj przed startem' : '🎰 Losuj kolejność';
-    el('drawStartBtn').textContent = '▶ START ZAWODÓW';
+    updateDrawGuidance();
 }
 
 export function closeDrawView() {
@@ -65,6 +68,38 @@ const SEG_COLORS = [
 
 let spinning     = false;
 let currentAngle = 0;  // aktualne obrócenie koła (radiany) — spójne z drawWheel()
+
+function updateDrawGuidance() {
+    const title = el('drawView-title');
+    const orderTitle = el('drawOrderTitle');
+    const hint = el('drawOrderHint');
+    const spinBtn = el('drawSpinBtn');
+    const startBtn = el('drawStartBtn');
+
+    if (allowStartWithoutDraw && !drawWasUsed) {
+        if (title) title.textContent = 'Kolejność startu';
+        if (orderTitle) orderTitle.textContent = 'Kolejność według wyboru';
+        if (hint) hint.textContent = 'Pierwszy zaznaczony zawodnik startuje jako pierwszy. Losowanie zmieni tę kolejność.';
+        if (spinBtn) spinBtn.textContent = '🎰 Losuj zamiast tej kolejności';
+        if (startBtn) startBtn.textContent = '▶ START BEZ LOSOWANIA';
+        return;
+    }
+
+    if (drawWasUsed) {
+        if (title) title.textContent = 'Wylosowana kolejność startu';
+        if (orderTitle) orderTitle.textContent = 'Kolejność po losowaniu';
+        if (hint) hint.textContent = 'Ta lista zastąpiła ręczną kolejność wyboru zawodników.';
+        if (spinBtn) spinBtn.textContent = '🎰 Losuj ponownie';
+        if (startBtn) startBtn.textContent = '▶ START PO LOSOWANIU';
+        return;
+    }
+
+    if (title) title.textContent = 'Losowanie kolejności startu';
+    if (orderTitle) orderTitle.textContent = 'Kolejność startu';
+    if (hint) hint.textContent = 'Użyj losowania albo wpisz kolejność ręcznie.';
+    if (spinBtn) spinBtn.textContent = '🎰 Losuj kolejność';
+    if (startBtn) startBtn.textContent = '▶ START ZAWODÓW';
+}
 
 /**
  * Rysuje koło obrócone o `offsetRad` radianów.
@@ -160,6 +195,8 @@ function renderPointer() {
 function spin() {
     if (spinning || competitors.length === 0) return;
     spinning = true;
+    drawWasUsed = true;
+    updateDrawGuidance();
     el('drawSpinBtn').disabled  = true;
     el('drawStartBtn').disabled = true;
 
@@ -219,7 +256,7 @@ function spin() {
             setTimeout(() => {
                 el('drawStartBtn').disabled   = false;
                 el('drawSpinBtn').disabled    = false;
-                el('drawSpinBtn').textContent = '🎰 Losuj ponownie';
+                updateDrawGuidance();
             }, 900);
         }
     }
@@ -322,12 +359,14 @@ function applyManualOrder() {
     }
 
     competitors = ordered;
+    drawWasUsed = false;
     drawWheel(competitors, currentAngle);
     renderOrder(competitors);
+    updateDrawGuidance();
     const startBtn = el('drawStartBtn');
     const spinBtn = el('drawSpinBtn');
     if (startBtn) startBtn.disabled = false;
-    if (spinBtn) spinBtn.textContent = 'Losuj ponownie';
+    if (spinBtn) spinBtn.disabled = false;
     closeManualOrderModal();
 }
 

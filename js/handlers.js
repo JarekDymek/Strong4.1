@@ -259,7 +259,10 @@ export function handleFilterChange(e) {
 }
 
 function syncCompetitorSelectionOrderUI() {
-    document.querySelectorAll('#competitorSelectionList .competitor-select-item').forEach(item => {
+    const list = document.getElementById('competitorSelectionList');
+    const items = Array.from(document.querySelectorAll('#competitorSelectionList .competitor-select-item'));
+
+    items.forEach(item => {
         const input = item.querySelector('input[type="checkbox"]');
         const badge = item.querySelector('.competitor-order-badge');
         const name = input?.value || '';
@@ -269,6 +272,25 @@ function syncCompetitorSelectionOrderUI() {
         item.dataset.order = isSelected ? String(orderIndex + 1) : '';
         if (badge) badge.textContent = isSelected ? String(orderIndex + 1) : '';
     });
+
+    if (!list) return;
+    const orderedItems = items.sort((a, b) => {
+        const aInput = a.querySelector('input[type="checkbox"]');
+        const bInput = b.querySelector('input[type="checkbox"]');
+        const aName = aInput?.value || '';
+        const bName = bInput?.value || '';
+        const aSelected = aInput?.checked && competitorSelectionOrder.includes(aName);
+        const bSelected = bInput?.checked && competitorSelectionOrder.includes(bName);
+
+        if (aSelected && bSelected) {
+            return competitorSelectionOrder.indexOf(aName) - competitorSelectionOrder.indexOf(bName);
+        }
+        if (aSelected) return -1;
+        if (bSelected) return 1;
+
+        return Number(a.dataset.dbOrder || 0) - Number(b.dataset.dbOrder || 0);
+    });
+    orderedItems.forEach(item => list.appendChild(item));
 }
 
 export function resetCompetitorSelectionOrder() {
