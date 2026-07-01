@@ -122,8 +122,16 @@ export function showConfirmation(message) {
 export function showPrompt(message, defaultValue = '') {
     return new Promise((resolve) => {
         const modal = DOMElements.promptModal;
+        const promptBox = modal?.querySelector('.modal-box');
+        const isResetPrompt = /\bRESET\b/i.test(String(message || ''));
         DOMElements.promptText.textContent = message;
         DOMElements.promptInput.value = defaultValue;
+        DOMElements.promptInput.disabled = false;
+        DOMElements.promptInput.readOnly = false;
+        DOMElements.promptInput.style.pointerEvents = 'auto';
+        DOMElements.promptInput.setAttribute('autocomplete', 'off');
+        DOMElements.promptInput.setAttribute('autocapitalize', isResetPrompt ? 'characters' : 'sentences');
+        DOMElements.promptInput.setAttribute('spellcheck', 'false');
         modal.classList.add('visible');
 
         const newConfirmBtn = DOMElements.promptConfirmBtn.cloneNode(true);
@@ -137,6 +145,34 @@ export function showPrompt(message, defaultValue = '') {
         DOMElements.promptCancelBtn = newCancelBtn;
         newCancelBtn.disabled = false;
 
+        let resetFillBtn = document.getElementById('promptResetFillBtn');
+        if (!resetFillBtn && promptBox) {
+            resetFillBtn = document.createElement('button');
+            resetFillBtn.id = 'promptResetFillBtn';
+            resetFillBtn.type = 'button';
+            resetFillBtn.className = 'prompt-reset-fill-btn';
+            resetFillBtn.textContent = 'Wpisz RESET';
+            promptBox.insertBefore(resetFillBtn, promptBox.querySelector('.modal-buttons'));
+        }
+
+        const updateConfirmState = () => {
+            if (!isResetPrompt) {
+                newConfirmBtn.disabled = false;
+                return;
+            }
+            newConfirmBtn.disabled = DOMElements.promptInput.value.trim().toUpperCase() !== 'RESET';
+        };
+
+        if (resetFillBtn) {
+            resetFillBtn.hidden = !isResetPrompt;
+            resetFillBtn.onclick = () => {
+                DOMElements.promptInput.value = 'RESET';
+                updateConfirmState();
+                DOMElements.promptInput.focus();
+                DOMElements.promptInput.select();
+            };
+        }
+
         // Focus po force-enable (wcześniej focus na disabled elemencie był ignorowany)
         DOMElements.promptInput.disabled = false;
         DOMElements.promptInput.focus();
@@ -144,8 +180,27 @@ export function showPrompt(message, defaultValue = '') {
 
         const close = (value) => {
             modal.classList.remove('visible');
+            DOMElements.promptInput.oninput = null;
+            DOMElements.promptInput.onkeydown = null;
+            if (resetFillBtn) resetFillBtn.hidden = true;
             resolve(value);
         };
+
+        DOMElements.promptInput.oninput = updateConfirmState;
+        DOMElements.promptInput.onkeydown = (event) => {
+            if (event.key === 'Enter' && !newConfirmBtn.disabled) {
+                event.preventDefault();
+                close(DOMElements.promptInput.value);
+            }
+        };
+        updateConfirmState();
+        setTimeout(() => {
+            DOMElements.promptInput.disabled = false;
+            DOMElements.promptInput.readOnly = false;
+            DOMElements.promptInput.focus();
+            DOMElements.promptInput.select();
+        }, 60);
+        setTimeout(() => DOMElements.promptInput.focus(), 260);
 
         newConfirmBtn.onclick = () => close(DOMElements.promptInput.value);
         newCancelBtn.onclick = () => close(null);

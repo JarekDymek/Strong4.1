@@ -539,7 +539,7 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
   align-items:center; justify-content:center;
   z-index:1000; padding:12px;
 }
-.modal-overlay.visible { display:flex; z-index:9000; }
+.modal-overlay.visible { display:flex; z-index:10050; }
 .modal-box {
   background: var(--bg-card);
   border: 1.5px solid var(--border-hi);
@@ -552,6 +552,16 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
 }
 .modal-buttons { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
 .modal-buttons button { width:auto; padding:11px 22px; margin:0; }
+.prompt-reset-fill-btn {
+  width: 100%;
+  min-height: 54px;
+  margin: 4px 0 10px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg,#B91C1C,#DC2626);
+  color: #fff;
+  font-weight: 900;
+}
+.prompt-reset-fill-btn[hidden] { display: none !important; }
 
 /* ══════════════════════════════════════════════
    BAZA ZAWODNIKÓW / KONKURENCJI
