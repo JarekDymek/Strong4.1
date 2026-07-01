@@ -227,7 +227,8 @@ export async function loadAndRenderInitialData() {
 
 export function handleThemeChange(e) {
     const theme = e.target.value;
-    document.body.className = theme;
+    document.body.classList.remove('light', 'dark', 'contrast', 'outdoor');
+    document.body.classList.add(theme || 'light');
     Persistence.saveTheme(theme);
 }
 

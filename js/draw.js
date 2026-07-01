@@ -39,7 +39,11 @@ export function openDrawView(competitorList, onStart, options = {}) {
     // Resetuj stan przycisków
     el('drawSpinBtn').disabled    = false;
     el('drawStartBtn').disabled   = !allowStartImmediately;
+    el('drawStartBtn').dataset.actionBusy = '0';
+    el('drawStartBtn').removeAttribute('aria-busy');
+    el('drawStartBtn').classList.remove('action-busy');
     el('drawSpinBtn').textContent = allowStartImmediately ? '🎰 Losuj przed startem' : '🎰 Losuj kolejność';
+    el('drawStartBtn').textContent = '▶ START ZAWODÓW';
 }
 
 export function closeDrawView() {
@@ -338,6 +342,12 @@ export function setupDrawListeners() {
     el('manualOrderApplyBtn')?.addEventListener('click', applyManualOrder);
     el('manualOrderCancelBtn')?.addEventListener('click', closeManualOrderModal);
     if (startBtn) startBtn.addEventListener('click', () => {
+        if (startBtn.dataset.actionBusy === '1') return;
+        startBtn.dataset.actionBusy = '1';
+        startBtn.disabled = true;
+        startBtn.setAttribute('aria-busy', 'true');
+        startBtn.classList.add('action-busy');
+        startBtn.textContent = 'Startuje...';
         if (onStartCb) onStartCb(competitors);
         closeDrawView();
     });

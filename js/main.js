@@ -73,6 +73,43 @@ function setUIBlocked(blocked) {
     }
 }
 
+function setButtonBusy(button, busy, label = 'Przetwarzam...') {
+    if (!button) return;
+    if (busy) {
+        if (button.dataset.actionBusy === '1') return;
+        button.dataset.actionBusy = '1';
+        button.dataset.originalText = button.textContent;
+        button.dataset.originalDisabled = button.disabled ? '1' : '0';
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.classList.add('action-busy');
+        button.textContent = label;
+        return;
+    }
+
+    button.dataset.actionBusy = '0';
+    button.removeAttribute('aria-busy');
+    button.classList.remove('action-busy');
+    if (button.dataset.originalText) button.textContent = button.dataset.originalText;
+    button.disabled = button.dataset.originalDisabled === '1';
+    delete button.dataset.originalText;
+    delete button.dataset.originalDisabled;
+}
+
+async function runGuardedAction(eventOrButton, action, options = {}) {
+    const button = eventOrButton?.currentTarget || eventOrButton;
+    if (button?.dataset?.actionBusy === '1') return false;
+    const minBusyMs = Number(options.minBusyMs ?? 900);
+    const startedAt = Date.now();
+    setButtonBusy(button, true, options.label || 'Przetwarzam...');
+    try {
+        return await action();
+    } finally {
+        const delay = Math.max(0, minBusyMs - (Date.now() - startedAt));
+        setTimeout(() => setButtonBusy(button, false), delay);
+    }
+}
+
 
 /* ═══════════════════════════════════════════════════════
    SYSTEM TIMELINE — podświetla kolejny wymagany przycisk
@@ -145,7 +182,10 @@ const ActiveActionGuide = (() => {
     function clear() {
         Object.values(STEPS).forEach(step => {
             const btn = document.getElementById(step.id);
-            if (btn) btn.classList.remove(...ACTION_CLASSES);
+            if (btn) {
+                btn.classList.remove(...ACTION_CLASSES);
+                btn.removeAttribute('aria-disabled-reason');
+            }
         });
     }
 
@@ -208,8 +248,10 @@ const ActiveActionGuide = (() => {
             if (step.id === active.id) {
                 btn.classList.add(step.cls, 'tl-active');
                 btn.setAttribute('aria-label', `Kolejny krok: ${step.label}`);
+                btn.removeAttribute('aria-disabled-reason');
             } else {
                 btn.classList.add('tl-muted');
+                btn.setAttribute('aria-disabled-reason', `Najpierw: ${active.label}`);
             }
         });
     }
@@ -357,6 +399,7 @@ function refreshFullUI() {
     UI.setLogoUI(currentState.logoData);
     UI.DOMElements.eventNameInput.value = currentState.eventName || '';
     UI.DOMElements.eventLocationInput.value = currentState.eventLocation || '';
+    updateJudgeStatusSummary();
     ActiveActionGuide.update();
 }
 
@@ -490,6 +533,7 @@ function renderJudgeList() {
     const judges = Judge.getJudges();
     if (judges.length === 0) {
         list.innerHTML = '<p style="font-size:0.82rem;color:#999;text-align:center;padding:6px 0 2px;">Brak aktywnych sędziów pomocniczych.</p>';
+        updateJudgeStatusSummary();
         return;
     }
     list.innerHTML = judges.map(j => {
@@ -527,6 +571,41 @@ function renderJudgeList() {
             </div>
         </div>`;
     }).join('');
+    updateJudgeStatusSummary();
+}
+
+function updateJudgeStatusSummary() {
+    const indicator = document.getElementById('judgeModeIndicator');
+    if (!indicator) return;
+    let detail = document.getElementById('judgeSessionStatus');
+    if (!detail) {
+        detail = document.createElement('div');
+        detail.id = 'judgeSessionStatus';
+        indicator.insertAdjacentElement('afterend', detail);
+    }
+
+    const judges = Judge.getJudges();
+    const activeJudges = judges.filter(j => j.active !== false).length;
+    const online = Judge.isOnlineMode();
+    const sessionId = Judge.getSessionId ? Judge.getSessionId() : '';
+    const shortSession = sessionId ? sessionId.slice(-7) : 'brak';
+    const eventNumber = State.getEventNumber ? State.getEventNumber() : 1;
+    const eventTitle = State.getEventTitle ? State.getEventTitle() : '';
+    const safeEvent = escapeHTML(`${eventNumber}. ${eventTitle || 'brak nazwy konkurencji'}`);
+    const safeSession = escapeHTML(shortSession);
+    const modeLabel = online ? 'ONLINE' : 'LOKALNY';
+    const modeHint = online
+        ? 'Sedzia pomocniczy moze pracowac przez internet.'
+        : 'Link dziala tylko lokalnie. Do stabilnej pracy na drugim urzadzeniu wlacz Firebase.';
+
+    detail.className = `judge-session-status ${online ? 'judge-session-status--online' : 'judge-session-status--local'}`;
+    detail.innerHTML = `
+        <span class="judge-session-status__mode">${modeLabel}</span>
+        <span>${activeJudges} sedziow</span>
+        <span>${safeEvent}</span>
+        <span>sesja ${safeSession}</span>
+        <small>${escapeHTML(modeHint)}</small>
+    `;
 }
 
 /**
@@ -746,7 +825,7 @@ function setupEventListeners() {
     safeAddListener('eventsDeselectAllBtn', 'click', () => EventsSelector.deselectAll());
     safeAddListener('selectEventsCancelBtn','click', () => EventsSelector.closeEventsSelector());
 
-    safeAddListener('selectEventsConfirmBtn','click', async () => {
+    safeAddListener('selectEventsConfirmBtn','click', async (e) => runGuardedAction(e, async () => {
         const chosen = EventsSelector.getSelectedEventsOrdered();
         if (!chosen || chosen.length === 0) {
             UI.showNotification('Wybierz co najmniej jedna konkurencje.', 'error');
@@ -770,7 +849,7 @@ function setupEventListeners() {
             }
             openDrawView(State.getActiveCompetitors());
         }
-    });
+    }, { label: 'Zatwierdzam...', minBusyMs: 1100 }));
     // Live preview zdjęcia po wyborze pliku — konwertuje do JFIF 120x120 i pokazuje podgląd
     safeAddListener('competitorPhotoInput', 'change', async (e) => {
         const file = e.target.files[0];
@@ -800,7 +879,7 @@ function setupEventListeners() {
         }
         await EventsSelector.openEventsSelector(planned, 'edit');
     });
-    safeAddListener('nextEventBtn','click', async () => {
+    safeAddListener('nextEventBtn','click', async (e) => runGuardedAction(e, async () => {
         if (await Handlers.handleNextEvent()) {
             signalNext(); VIB.next();
             refreshFullUI();
@@ -813,8 +892,8 @@ function setupEventListeners() {
                 State.getEventNumber()
             );
         }
-    });
-    safeAddListener('finalEventBtn','click', async () => {
+    }, { label: 'Przechodze...', minBusyMs: 1200 }));
+    safeAddListener('finalEventBtn','click', async (e) => runGuardedAction(e, async () => {
         if (await Handlers.handleFinalEvent()) {
             signalFanfare(); VIB.fanfare();
             confettiBurst(32);
@@ -828,8 +907,8 @@ function setupEventListeners() {
                 State.getEventNumber()
             );
         }
-    });
-    safeAddListener('calculatePointsBtn','click', async () => {
+    }, { label: 'Ustawiam final...', minBusyMs: 1200 }));
+    safeAddListener('calculatePointsBtn','click', async (e) => runGuardedAction(e, async () => {
         if (await Handlers.handleCalculatePoints()) {
             signalPoints(); VIB.save();
             confettiBurst(16);
@@ -843,7 +922,7 @@ function setupEventListeners() {
                 State.getEventNumber()
             );
         }
-    });
+    }, { label: 'Licze punkty...', minBusyMs: 1200 }));
     safeAddListener('showFinalSummaryBtn','click', () => {
         const main    = document.getElementById('mainContent');
         const summary = document.getElementById('summaryView');
@@ -1122,10 +1201,10 @@ function setupEventListeners() {
         }
     });
     safeAddListener('exportHtmlBtn','click', Handlers.handleExportHtml);
-    safeAddListener('resetCompetitionBtn','click', () => Persistence.resetApplication(refreshFullUI));
-    safeAddListener('saveCheckpointBtn','click', () => Persistence.saveCheckpoint());
+    safeAddListener('resetCompetitionBtn','click', (e) => runGuardedAction(e, () => Persistence.resetApplication(refreshFullUI), { label: 'Czekam...', minBusyMs: 1200 }));
+    safeAddListener('saveCheckpointBtn','click', (e) => runGuardedAction(e, () => Persistence.saveCheckpoint(), { label: 'Zapisuje...', minBusyMs: 1000 }));
     // Punkty kontrolne też w panelu "Zabezpieczenia przed startem" (intro)
-    safeAddListener('saveCheckpointBtn_intro','click', () => Persistence.saveCheckpoint());
+    safeAddListener('saveCheckpointBtn_intro','click', (e) => runGuardedAction(e, () => Persistence.saveCheckpoint(), { label: 'Zapisuje...', minBusyMs: 1000 }));
     safeAddListener('showCheckpointsBtn_intro','click', () => {
         // Pokaż listę w panelu intro
         Persistence.handleShowCheckpoints('checkpointListContainer_intro','checkpointList_intro');
@@ -1139,8 +1218,8 @@ function setupEventListeners() {
     safeAddListener('showCheckpointsBtn','click', () => Persistence.handleShowCheckpoints());
     safeAddListener('checkpointList','click', (e) => Persistence.handleCheckpointListActions(e, refreshFullUI));
     safeAddListener('checkpointList','change', (e) => Persistence.handleCheckpointListActions(e, refreshFullUI));
-    safeAddListener('exportStateBtn_main','click', () => Persistence.exportStateToFile());
-    safeAddListener('shareBackupBtn_main','click', () => Persistence.shareStateBackup('Backup_zawodow'));
+    safeAddListener('exportStateBtn_main','click', (e) => runGuardedAction(e, () => Persistence.exportStateToFile(), { label: 'Eksportuje...', minBusyMs: 900 }));
+    safeAddListener('shareBackupBtn_main','click', (e) => runGuardedAction(e, () => Persistence.shareStateBackup('Backup_zawodow'), { label: 'Przygotowuje...', minBusyMs: 900 }));
     safeAddListener('importStateBtn_main','click', () => document.getElementById('importFile_main').click());
     safeAddListener('importFile_main','change', async (e) => {
         const file = e.target.files[0];
@@ -1148,8 +1227,8 @@ function setupEventListeners() {
         // NIE używamy setUIBlocked — showConfirmation wewnątrz byłoby zablokowane
         await Handlers.handleImportState(file, refreshFullUI);
     });
-    safeAddListener('exportStateBtn_intro','click', () => Persistence.exportStateToFile('Stan_przed_startem'));
-    safeAddListener('shareBackupBtn_intro','click', () => Persistence.shareStateBackup('Backup_przed_startem'));
+    safeAddListener('exportStateBtn_intro','click', (e) => runGuardedAction(e, () => Persistence.exportStateToFile('Stan_przed_startem'), { label: 'Eksportuje...', minBusyMs: 900 }));
+    safeAddListener('shareBackupBtn_intro','click', (e) => runGuardedAction(e, () => Persistence.shareStateBackup('Backup_przed_startem'), { label: 'Przygotowuje...', minBusyMs: 900 }));
     safeAddListener('importStateBtn_intro','click', () => document.getElementById('importFile_intro').click());
     safeAddListener('importFile_intro','change', async (e) => {
         const file = e.target.files[0];
@@ -1157,11 +1236,11 @@ function setupEventListeners() {
         await Handlers.handleImportState(file, refreshFullUI);
     });
 
-    safeAddListener('cloudPushBtn','click', async () => {
+    safeAddListener('cloudPushBtn','click', async (e) => runGuardedAction(e, async () => {
         const res = await CloudSync.pushStateToCloud('Reczny zapis z urzadzenia');
         UI.showNotification(res.ok ? 'Stan zapisany w chmurze.' : 'Chmura niedostepna: ' + (res.reason || 'offline'), res.ok ? 'success' : 'error', 3500);
-    });
-    safeAddListener('cloudPullBtn','click', async () => {
+    }, { label: 'Zapisuje...', minBusyMs: 1100 }));
+    safeAddListener('cloudPullBtn','click', async (e) => runGuardedAction(e, async () => {
         let res = await CloudSync.pullStateFromCloud();
         if (!res.ok && res.reason === 'empty') {
             const currentCloudId = CloudSync.getCloudStatus().cloudId;
@@ -1193,7 +1272,7 @@ function setupEventListeners() {
         } else {
             UI.showNotification('Nie wczytano z chmury: ' + (res.reason || 'brak danych'), 'error', 3500);
         }
-    });
+    }, { label: 'Odswiezam...', minBusyMs: 1100 }));
     safeAddListener('cloudShareBtn','click', async () => {
         const url = CloudSync.getCloudShareUrl();
         await copyOrShareUrl(url, 'Strong Man - sesja w chmurze', 'Otworz ten link na drugim zaufanym urzadzeniu, aby wczytac ta sama sesje zawodow.');
@@ -1278,7 +1357,7 @@ async function initializeApp() {
 
 
         const savedTheme = Persistence.loadTheme();
-        document.body.classList.remove('light', 'dark', 'contrast');
+        document.body.classList.remove('light', 'dark', 'contrast', 'outdoor');
         if (savedTheme) document.body.classList.add(savedTheme);
         UI.DOMElements.themeSelector.value = savedTheme;
         applyTrialRestrictions();
@@ -1327,6 +1406,7 @@ async function initializeApp() {
                 }
             }
         } catch(_) {}
+        updateJudgeStatusSummary();
         UI.showNotification("Aplikacja gotowa!", "success", 2000);
     } catch (error) {
         console.error("Krytyczny błąd podczas inicjalizacji:", error);

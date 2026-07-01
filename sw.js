@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v15-selection-cloud-checkpoints';
+const CACHE_VERSION = 'v16-outdoor-touch-guards';
 const PRECACHE = `precache-${CACHE_VERSION}`;
 const RUNTIME = `runtime-${CACHE_VERSION}`;
 const scopeUrl = (path) => new URL(path, self.registration.scope).toString();

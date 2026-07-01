@@ -206,6 +206,9 @@ let _listenersBound = false;
 let _tapStartX = 0;
 let _tapStartY = 0;
 let _tapStartTime = 0;
+let _resetHoldTimer = null;
+let _resetHoldArmed = false;
+let _resetHoldCompleted = false;
 
 /* ═══════════════════════════════════════════════════════
    INIT — zbierz referencje DOM raz, używaj zawsze
@@ -270,7 +273,57 @@ function _renderTime() {
 /* ═══════════════════════════════════════════════════════
    RESET — czyści wszystko do stanu wyboru trybu
 ═══════════════════════════════════════════════════════ */
-function _reset() {
+function _setResetHoldVisual(isHolding) {
+  if (!E.resetBtn) return;
+  E.resetBtn.classList.toggle('is-holding', isHolding);
+  E.resetBtn.textContent = isHolding ? 'Trzymaj...' : 'Reset (przytrzymaj)';
+}
+
+function _cancelResetHold() {
+  if (_resetHoldCompleted) return;
+  clearTimeout(_resetHoldTimer);
+  _resetHoldTimer = null;
+  _resetHoldArmed = false;
+  _setResetHoldVisual(false);
+}
+
+function _beginResetHold(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!E.resetBtn || _resetHoldArmed) return;
+  _resetHoldCompleted = false;
+  _resetHoldArmed = true;
+  _setResetHoldVisual(true);
+  VIB.warning();
+  _resetHoldTimer = setTimeout(() => {
+    _resetHoldTimer = null;
+    _resetHoldArmed = false;
+    _resetHoldCompleted = true;
+    _setResetHoldVisual(false);
+    _reset(true);
+    signalSave();
+    VIB.save();
+    notify('Stoper zresetowany.', 'success', 1400);
+  }, 900);
+}
+
+function _handleResetClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (_resetHoldCompleted) {
+    _resetHoldCompleted = false;
+    return;
+  }
+  signalWarning();
+  VIB.warning();
+  notify('Przytrzymaj Reset przez 1 sekunde.', 'info', 1800);
+}
+
+function _reset(fromHold = false) {
+  clearTimeout(_resetHoldTimer);
+  _resetHoldTimer = null;
+  _resetHoldArmed = false;
+  if (!fromHold) _resetHoldCompleted = false;
   cancelAnimationFrame(_rafId);
   _running = false; _elapsed = 0; _reps = 0; _laps = []; _mode = null;
 
@@ -280,6 +333,7 @@ function _reset() {
   if (E.modeSel)  E.modeSel.style.display  = 'grid';
   if (E.repsBtn)  { E.repsBtn.classList.remove('selected'); E.repsBtn.innerHTML = 'Powtorzenia'; }
   if (E.lapsBtn)  { E.lapsBtn.classList.remove('selected'); E.lapsBtn.innerHTML = 'Miedzyczasy'; }
+  _setResetHoldVisual(false);
   if (E.root)     E.root.classList.remove('mode-selected','sw-running','sw-stopped');
   _removeTapHint();
   _removeEventIcon();
@@ -356,6 +410,7 @@ function _stop() {
   E.root.classList.add('sw-stopped');
   E.startBtn.style.display = 'none';
   E.postStop.style.display = 'grid';
+  _setResetHoldVisual(false);
   _removeTapHint();
 
   if (_mode === 'laps' && _laps.length > 0) _showLapModal();
@@ -549,7 +604,11 @@ export function setupStopwatchEventListeners() {
   });
 
   /* ─── Post-stop ─── */
-  E.resetBtn.addEventListener('click', _reset);
+  E.resetBtn.addEventListener('pointerdown', _beginResetHold);
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => {
+    E.resetBtn.addEventListener(ev, _cancelResetHold);
+  });
+  E.resetBtn.addEventListener('click', _handleResetClick);
   E.saveBtn.addEventListener('click',  () => _saveResult(_elapsed));
 
   /* ─── Wyjście ─── */

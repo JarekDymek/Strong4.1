@@ -135,6 +135,54 @@ body.contrast input, body.contrast select, body.contrast textarea {
 body.contrast #fullscreenStopwatch { background: #000 !important; }
 body.contrast #fsTime { color: #FFFF00 !important; text-shadow: none !important; }
 
+body.outdoor {
+  --bg-body: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card2: #F3F6FA;
+  --bg-header: #0B1F33;
+  --text-main: #06111F;
+  --text-muted: #243B53;
+  --text-hi: #000000;
+  --fire: #C83200;
+  --gold: #9A5E00;
+  --lime: #087A2E;
+  --teal: #006D77;
+  --purple: #4C1D95;
+  --blue: #003EA8;
+  --red: #B00020;
+  --fire-btn: #E23B00;
+  --gold-btn: #D48600;
+  --lime-btn: #087A2E;
+  --teal-btn: #006D77;
+  --purple-btn: #5B21B6;
+  --blue-btn: #004FD8;
+  --red-btn: #B00020;
+  --border: #64748B;
+  --border-hi: #0F172A;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+}
+body.outdoor .panel,
+body.outdoor .intro-container,
+body.outdoor .event-meta-header,
+body.outdoor .security-panel,
+body.outdoor #judgeManagementPanel,
+body.outdoor .collapsible-panel {
+  border: 2px solid var(--border-hi) !important;
+  box-shadow: none !important;
+}
+body.outdoor button {
+  border: 2px solid rgba(0,0,0,0.24);
+  text-shadow: none;
+}
+body.outdoor input,
+body.outdoor select,
+body.outdoor textarea {
+  border-width: 2px;
+  background: #fff;
+}
+
 /* ══════════════════════════════════════════════
    RESET & BASE
 ══════════════════════════════════════════════ */
@@ -307,6 +355,33 @@ button:hover:not(:disabled) { transform:translateY(-2px); box-shadow:var(--shado
 button:active:not(:disabled) { transform:translateY(1px) scale(0.98); }
 button:disabled { background:#C0CDD8 !important; color:#6A8A9A !important; cursor:not-allowed; box-shadow:none; }
 body.dark button:disabled { background:#1A2A3A !important; color:#3A5A7A !important; }
+button.action-busy {
+  opacity: 0.88;
+  filter: saturate(0.9);
+  cursor: wait !important;
+  position: relative;
+}
+button.action-busy::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: -2px;
+  animation: spin 0.8s linear infinite;
+}
+button[aria-disabled-reason]::before {
+  content: attr(aria-disabled-reason);
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  line-height: 1.1;
+  margin-bottom: 3px;
+  opacity: 0.95;
+}
 button:focus-visible {
   outline: 3px solid rgba(245,158,0,0.75);
   outline-offset: 3px;
@@ -1411,6 +1486,21 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
 /* Post-stop: reset i zapis */
 #fsPostStopControls { display:none; grid-template-columns:1fr 1fr; gap:12px; width:100%; min-height:88px; }
 #fsResetBtn { background:linear-gradient(135deg,#1D4ED8,#2563EB); }
+#fsResetBtn::after {
+  content:'przytrzymaj 1 s';
+  display:block;
+  font-size:0.58em;
+  line-height:1.2;
+  opacity:0.82;
+  margin-top:4px;
+  letter-spacing:0.5px;
+}
+#fsResetBtn.is-holding {
+  background:linear-gradient(135deg,#B91C1C,#EF4444);
+  box-shadow:0 0 0 4px rgba(239,68,68,0.24), 0 8px 28px rgba(239,68,68,0.46);
+  animation:glow-fire 0.9s ease-in-out infinite;
+}
+#fsResetBtn.is-holding::after { content:'puszczenie anuluje'; }
 #fsSaveBtn  { background:linear-gradient(135deg,#15803D,#16A34A); animation:glow-lime 2s ease-in-out infinite; }
 
 /* ══════════════════════════════════════════════
@@ -1518,6 +1608,43 @@ body.dark .guide-done-badge { color:#4ADE80; }
 #judgeManagementPanel h3 { color:var(--text-main); }
 body.dark #judgeManagementPanel h3 { color:var(--gold); }
 #judgeModeIndicator { font-size:0.78rem; padding:8px 12px; border-radius:var(--r-sm); margin-bottom:10px; display:flex; align-items:center; gap:6px; background:var(--bg-card2); color:var(--text-muted); }
+#judgeSessionStatus {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  margin:-2px 0 10px;
+  padding:10px;
+  border:1.5px solid var(--border);
+  border-radius:var(--r-sm);
+  background:var(--bg-card2);
+  color:var(--text-main);
+  font-size:0.78rem;
+  line-height:1.35;
+}
+.judge-session-status span {
+  min-width:0;
+  padding:6px 8px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.68);
+  font-weight:800;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.judge-session-status small {
+  grid-column:1 / -1;
+  color:var(--text-muted);
+  font-weight:700;
+  line-height:1.45;
+}
+.judge-session-status__mode { color:#fff !important; text-align:center; letter-spacing:0.6px; }
+.judge-session-status--online .judge-session-status__mode { background:#15803D; }
+.judge-session-status--local .judge-session-status__mode { background:#C2410C; }
+body.dark .judge-session-status span,
+body.outdoor .judge-session-status span { background:var(--bg-card); }
+@media (max-width: 520px) {
+  #judgeSessionStatus { grid-template-columns:1fr; font-size:0.82rem; }
+}
 #newJudgeForm { background:var(--bg-card2); border-radius:var(--r-md); padding:14px; margin-bottom:10px; border:1px solid var(--border); }
 
 /* ══════════════════════════════════════════════
@@ -2110,6 +2237,40 @@ body.trial-expired .event-meta-header {
   padding: 14px 8px;
   color: #64748B;
   text-align: center;
+}
+
+@media (max-width: 900px) {
+  #mainContent {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+  #mainContent .workflow-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1200;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+    margin: 12px -4px 16px;
+    background: color-mix(in srgb, var(--bg-body) 92%, white);
+    border: 2px solid var(--border-hi);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 24px rgba(15,23,42,0.16);
+  }
+  body.dark #mainContent .workflow-actions {
+    background: color-mix(in srgb, var(--bg-body) 90%, black);
+  }
+  body.outdoor #mainContent .workflow-actions {
+    background: #FFFFFF;
+    box-shadow: none;
+  }
+  #mainContent .workflow-actions button {
+    width: 100%;
+    min-height: 58px;
+    margin: 0;
+    font-size: 1rem;
+    border-radius: 14px;
+  }
 }
 
 @media (max-width: 760px) {
